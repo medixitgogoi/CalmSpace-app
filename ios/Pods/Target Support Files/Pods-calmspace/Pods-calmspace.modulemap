@@ -1,0 +1,6 @@
+module Pods_calmspace {
+  umbrella header "Pods-calmspace-umbrella.h"
+
+  export *
+  module * { export * }
+}

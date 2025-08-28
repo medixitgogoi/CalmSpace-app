@@ -1,0 +1,42 @@
+{
+  "buildFiles": [
+    "/Users/dixit/Desktop/calm0.78/calmspace/node_modules/react-native/ReactAndroid/cmake-utils/default-app-setup/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/dixit/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/dixit/Desktop/calm0.78/calmspace/android/app/.cxx/Debug/5c2q4b3s/x86",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/dixit/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/dixit/Desktop/calm0.78/calmspace/android/app/.cxx/Debug/5c2q4b3s/x86",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "appmodules::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "appmodules",
+      "output": "/Users/dixit/Desktop/calm0.78/calmspace/android/app/build/intermediates/cxx/Debug/5c2q4b3s/obj/x86/libappmodules.so",
+      "runtimeFiles": [
+        "/Users/dixit/.gradle/caches/8.10.2/transforms/99e79a1f7aa2031788e4f4af2a657d48/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.x86/libfbjni.so",
+        "/Users/dixit/.gradle/caches/8.10.2/transforms/69059cf8758abe1bbc9cffd16db8c2ed/transformed/react-android-0.78.2-debug/prefab/modules/jsi/libs/android.x86/libjsi.so",
+        "/Users/dixit/.gradle/caches/8.10.2/transforms/69059cf8758abe1bbc9cffd16db8c2ed/transformed/react-android-0.78.2-debug/prefab/modules/reactnative/libs/android.x86/libreactnative.so"
+      ]
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/Users/dixit/Library/Android/sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/Users/dixit/Library/Android/sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}
