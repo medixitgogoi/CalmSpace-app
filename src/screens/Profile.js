@@ -207,7 +207,7 @@ const Profile = ({ navigation }) => {
 
             <View style={styles.footerContainer}>
               <Text style={styles.footerText}>Made with ❤️ from Calmspace</Text>
-              <Text style={styles.versionText}>App Version: 5.2.1</Text>
+              <Text style={styles.versionText}>App Version: 6.1.1</Text>
             </View>
           </ScrollView>
         )}

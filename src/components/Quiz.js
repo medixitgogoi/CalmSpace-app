@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
     Animated,
     Text,
@@ -6,73 +6,72 @@ import {
     View,
     StyleSheet,
     Platform,
-    Dimensions,
     Image,
+    PixelRatio,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-// NOTE: I'm re-introducing react-native-linear-gradient for the button as it's
-// the best way to achieve a modern gradient effect. If this is not desired,
-// the button can be reverted to a solid color.
 import LinearGradient from 'react-native-linear-gradient';
+import { responsiveHeight } from 'react-native-responsive-dimensions';
 
-// Using Dimensions API for more robust responsiveness
-const { width } = Dimensions.get('window');
-
-// --- Component ---
+// --- Utility for Responsive Scaling ---
+// Scales font size based on screen pixel density for better readability on all devices
+const getFontScale = () => {
+    const scale = PixelRatio.getFontScale();
+    return scale > 1 ? 1 : scale; // Prevent text from becoming massive on large accessibility settings if layout breaks
+};
 
 const QuizCard = () => {
-    // Hooks
     const navigation = useNavigation();
-    const shakeAnim = useRef(new Animated.Value(0)).current;
 
-    // A "shake" animation for the button to attract attention.
+    // Use scale animation (Pulse) instead of rotation (Shake)
+    // Pulse is more inviting; Shake often signifies "Error".
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+
     useEffect(() => {
         const animation = Animated.loop(
             Animated.sequence([
-                Animated.delay(2500), // A slightly longer delay
-                // The shake sequence
-                Animated.timing(shakeAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
-                Animated.timing(shakeAnim, { toValue: -1, duration: 100, useNativeDriver: true }),
-                Animated.timing(shakeAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
-                Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+                Animated.delay(3000),
+                Animated.timing(pulseAnim, {
+                    toValue: 1.05, // Scale up slightly
+                    duration: 400,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseAnim, {
+                    toValue: 1, // Scale back down
+                    duration: 400,
+                    useNativeDriver: true,
+                }),
             ])
         );
 
         animation.start();
-        return () => animation.stop(); // Cleanup on unmount
-    }, [shakeAnim]);
+        return () => animation.stop();
+    }, [pulseAnim]);
 
-    // Interpolate the animation value to a rotation degree
     const animatedButtonStyle = {
-        transform: [
-            {
-                rotate: shakeAnim.interpolate({
-                    inputRange: [-1, 1],
-                    outputRange: ['-1deg', '1deg'],
-                }),
-            },
-        ],
+        transform: [{ scale: pulseAnim }],
     };
 
-    // Render
+    // Memoize navigation handler
+    const handlePress = useMemo(() => () => {
+        navigation.navigate('QuizQuestions');
+    }, [navigation]);
+
     return (
         <View style={styles.cardWrapper}>
             <View style={styles.container}>
-                {/* Horizontal View for Image and Text */}
+                {/* Top Section: Image & Text */}
                 <View style={styles.contentRow}>
-                    {/* Image framed in a circle */}
-                    <View style={styles.imageFrame}>
+                    <View style={styles.imageContainer}>
                         <Image
-                            // NOTE: Make sure this path is correct for your project structure.
                             source={require('../assets/quiz.png')}
                             style={styles.image}
-                            resizeMode="cover" // Use 'cover' for circular frames
+                            resizeMode="cover"
                         />
                     </View>
 
-                    {/* Text content */}
                     <View style={styles.textContainer}>
-                        <Text style={styles.titleText}>
+                        <Text style={styles.titleText} numberOfLines={2} adjustsFontSizeToFit>
                             Check your mental well-being
                         </Text>
                         <Text style={styles.subtitleText}>
@@ -81,19 +80,22 @@ const QuizCard = () => {
                     </View>
                 </View>
 
-                {/* Animated gradient button */}
-                <Animated.View style={animatedButtonStyle}>
+                {/* Bottom Section: Action Button */}
+                <Animated.View style={[styles.buttonWrapper, animatedButtonStyle]}>
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('QuizQuestions')}
-                        activeOpacity={0.8}
+                        onPress={handlePress}
+                        activeOpacity={0.9}
+                        style={styles.touchable}
                     >
                         <LinearGradient
-                            colors={['#8B5CF6', '#EC4899']} // Vibrant purple to pink gradient
+                            // Using a more vibrant "Cyberpunk" or "Modern Health" gradient
+                            colors={['#6366f1', '#a855f7', '#ec4899']}
                             start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.button}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.gradientButton}
                         >
                             <Text style={styles.buttonText}>Start the Quiz</Text>
+                            {/* Optional: Add an icon here if you have an icon library installed */}
                         </LinearGradient>
                     </TouchableOpacity>
                 </Animated.View>
@@ -106,74 +108,94 @@ const QuizCard = () => {
 
 const styles = StyleSheet.create({
     cardWrapper: {
-        marginHorizontal: width * 0.05,
-        marginTop: 20,
-        marginBottom: 10,
-        // Dark theme shadow
+        width: '90%', // Occupy 90% of screen width regardless of device size
+        alignSelf: 'center',
+        marginVertical: 20,
+        // High-end Shadow for depth
         ...Platform.select({
             ios: {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.3,
-                shadowRadius: 20,
+                shadowColor: '#4f46e5', // Colored shadow matches the theme
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.25,
+                shadowRadius: 16,
             },
             android: {
-                elevation: 12,
+                elevation: 10,
+                shadowColor: '#4f46e5',
             },
         }),
     },
     container: {
-        borderRadius: 26, // More pronounced rounding
-        backgroundColor: '#1F2937', // Dark charcoal background
-        padding: 15,
+        backgroundColor: '#111827', // Deep Grey/Black (Modern Dark Theme)
+        borderRadius: 24,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)', // Subtle border for definition
     },
     contentRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 24, // Space between the content row and the button
+        marginBottom: 24,
     },
-    imageFrame: {
-        width: width * 0.25, // Adjusted size for horizontal layout
-        height: width * 0.25,
-        borderRadius: width * 0.125, // Make it a perfect circle
-        backgroundColor: '#374151',
-        justifyContent: 'center',
-        alignItems: 'center',
-        overflow: 'hidden',
+    imageContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        marginRight: 16,
+        // Neumorphic inner shadow effect logic for image frame
+        backgroundColor: '#1f2937',
         borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        marginRight: 16, // Space between image and text
+        borderColor: 'rgba(255,255,255,0.1)',
+        overflow: 'hidden',
     },
     image: {
         width: '100%',
         height: '100%',
     },
     textContainer: {
-        flex: 1, // Allow text container to fill remaining space
+        flex: 1, // Takes up remaining space
+        justifyContent: 'center',
     },
     titleText: {
-        fontFamily: 'Poppins-Bold',
-        fontSize: width * 0.041,
-        color: '#F9FAFB',
-        marginBottom: 6,
+        fontFamily: Platform.OS === 'ios' ? 'Poppins-Bold' : 'Roboto', // Fallback font for safety
+        fontWeight: '700',
+        fontSize: 18 / getFontScale(),
+        color: '#F3F4F6', // Off-white for less eye strain than pure white
+        marginBottom: 4,
+        letterSpacing: 0.5,
     },
     subtitleText: {
-        fontFamily: 'Poppins-Regular',
-        fontSize: width * 0.03,
-        color: '#9CA3AF',
+        fontFamily: Platform.OS === 'ios' ? 'Poppins-Regular' : 'Roboto',
+        fontSize: 13 / getFontScale(),
+        color: '#9CA3AF', // Cool Gray
+        lineHeight: 18,
     },
-    button: {
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 50, // Pill-shaped
+    buttonWrapper: {
+        width: '100%',
+        alignItems: 'center',
+    },
+    touchable: {
+        width: '100%',
+    },
+    gradientButton: {
+        // paddingVertical: 14,
+        height: responsiveHeight(6), // Fixed height for consistency
+        borderRadius: 16, // Slightly softer rect than a full pill
         alignItems: 'center',
         justifyContent: 'center',
+        width: '100%',
+        // Inner shadow hack for button depth
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.2)',
     },
     buttonText: {
         color: '#FFFFFF',
         fontFamily: 'Poppins-SemiBold',
-        fontSize: width * 0.045,
+        fontWeight: '600',
+        fontSize: 16 / getFontScale(),
+        letterSpacing: 0.5,
     },
 });
 
-export default QuizCard;
+// Memoize the component to prevent re-renders on parent state changes
+export default React.memo(QuizCard);

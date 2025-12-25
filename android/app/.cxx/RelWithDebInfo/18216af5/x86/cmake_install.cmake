@@ -39,7 +39,19 @@ endif()
 
 # Set default install directory permissions.
 if(NOT DEFINED CMAKE_OBJDUMP)
-  set(CMAKE_OBJDUMP "/Users/dixit/Library/Android/sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objdump")
+  set(CMAKE_OBJDUMP "/Volumes/DevDrive/Android/sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objdump")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for each subdirectory.
+  include("/Users/dixit/Desktop/calm0.78/calmspace/android/app/.cxx/RelWithDebInfo/18216af5/x86/rnasyncstorage_autolinked_build/cmake_install.cmake")
+  include("/Users/dixit/Desktop/calm0.78/calmspace/android/app/.cxx/RelWithDebInfo/18216af5/x86/rnclipboard_autolinked_build/cmake_install.cmake")
+  include("/Users/dixit/Desktop/calm0.78/calmspace/android/app/.cxx/RelWithDebInfo/18216af5/x86/rnpicker_autolinked_build/cmake_install.cmake")
+  include("/Users/dixit/Desktop/calm0.78/calmspace/android/app/.cxx/RelWithDebInfo/18216af5/x86/lottiereactnative_autolinked_build/cmake_install.cmake")
+  include("/Users/dixit/Desktop/calm0.78/calmspace/android/app/.cxx/RelWithDebInfo/18216af5/x86/safeareacontext_autolinked_build/cmake_install.cmake")
+  include("/Users/dixit/Desktop/calm0.78/calmspace/android/app/.cxx/RelWithDebInfo/18216af5/x86/rnscreens_autolinked_build/cmake_install.cmake")
+  include("/Users/dixit/Desktop/calm0.78/calmspace/android/app/.cxx/RelWithDebInfo/18216af5/x86/RNVectorIconsSpec_autolinked_build/cmake_install.cmake")
+
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)

@@ -74,7 +74,7 @@ const AiChat = ({ navigation }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'deepseek/deepseek-r1-0528:free',
+          model: "tngtech/deepseek-r1t2-chimera:free",
           messages: [
             {
               role: 'system',
