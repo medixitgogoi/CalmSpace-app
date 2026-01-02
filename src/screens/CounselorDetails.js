@@ -8,9 +8,9 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
-  StyleSheet, // Import StyleSheet for optimized styles
+  StyleSheet,
   Animated,
-  Platform, // Import Animated for UI animations
+  Platform,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -18,33 +18,25 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import Modal from 'react-native-modal';
 import moment from 'moment';
 import { useNavigation } from '@react-navigation/native';
-import axios from 'axios';
 import { useSelector } from 'react-redux';
 import Toast from 'react-native-toast-message';
 import { responsiveFontSize, responsiveHeight } from 'react-native-responsive-dimensions';
 
-// Assuming these are defined in your utils/colors.js
-// const background = '#F8F8F8';
-// const primary = '#0fb8ad'; // Example primary color
-// const secondary = '#1fc8db'; // Example secondary color
-
-// Placeholder colors if utils/colors is not available in this environment
+// Placeholder colors
 const background = '#F8F8F8';
 const primary = '#0fb8ad';
-const secondary = '#1fc8db';
 
 const { width } = Dimensions.get('window');
 
 const CounselorDetails = ({ route }) => {
   const { counselor } = route.params;
-  console.log('counselor details: ', counselor); // Keep for debugging if needed
 
   const userDetails = useSelector(state => state.user);
   const authToken = userDetails?.authToken;
   const navigation = useNavigation();
 
   const scrollRef = useRef(null);
-  const tabIndicatorAnim = useRef(new Animated.Value(0)).current; // For tab indicator animation
+  const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
 
   const [activeTab, setActiveTab] = useState(0);
   const [isModalVisible, setModalVisible] = useState(false);
@@ -60,37 +52,32 @@ const CounselorDetails = ({ route }) => {
     }
   }, [counselor?.schedule]);
 
-  // Use useCallback for functions that don't need to be recreated on every render
   const toggleModal = useCallback(() => {
     setModalVisible(prev => !prev);
-    setSelectedSlot(null); // Reset selected slot when modal is closed
+    setSelectedSlot(null);
   }, []);
 
   const handleTabPress = useCallback(index => {
     setActiveTab(index);
     scrollRef.current?.scrollTo({ x: width * index, animated: true });
 
-    // Animate tab indicator
     Animated.spring(tabIndicatorAnim, {
       toValue: index,
       useNativeDriver: true,
-      bounciness: 0, // No bounce for a cleaner slide
+      bounciness: 0,
     }).start();
-  }, [width]); // width is constant, but included for completeness
+  }, [width, tabIndicatorAnim]);
 
-  // Memoize the formatSlotRange function if it were more complex or passed to many children
   const formatSlotRange = useCallback(timeStr => {
     const start = moment(timeStr, ['h:mm A']);
     const end = moment(start).add(1, 'hour');
     return `${start.format('hh:mm A')} - ${end.format('hh:mm A')}`;
   }, []);
 
-  // Memoize formattedSlots to prevent re-calculation on every render
   const formattedSlots = useMemo(() => {
     return scheduleTimes?.map(formatSlotRange) || [];
   }, [scheduleTimes, formatSlotRange]);
 
-  // Memoize formattedDate
   const formattedDate = useMemo(() => {
     return scheduleAt ? moment(scheduleAt).format('MMMM D, YYYY') : '';
   }, [scheduleAt]);
@@ -103,80 +90,25 @@ const CounselorDetails = ({ route }) => {
         position: 'top',
         topOffset: 40,
       });
-
       return;
     }
 
     const scheduleTime = selectedSlot.split(' - ')[0];
 
-    navigation.navigate('MeetPaymentScreen', { counselor: counselor, scheduleAt: scheduleAt, scheduleTime: scheduleTime, meetLink: counselor?.schedule?.meetLink, selectedSlot: selectedSlot });
+    navigation.navigate('MeetPaymentScreen', {
+      counselor: counselor,
+      scheduleAt: scheduleAt,
+      scheduleTime: scheduleTime,
+      meetLink: counselor?.schedule?.meetLink,
+      selectedSlot: selectedSlot
+    });
     setModalVisible(false);
 
-    // setLoading(true);
+  }, [selectedSlot, scheduleAt, counselor, navigation]);
 
-    // try {
-    //   const scheduleTime = selectedSlot.split(' - ')[0];
-
-    //   const submitData = {
-    //     scheduleDate: scheduleAt,
-    //     scheduleTime: scheduleTime,
-    //     meetLink: counselor?.schedule?.meetLink,
-    //     counselorName: counselor?.counselorId?.name,
-    //     counselorId: counselor?.counselorId?._id,
-    //   };
-
-    //   // In a real app, you'd likely have an axios instance with a base URL and interceptors
-    //   // For this example, we'll keep the direct call but note the best practice.
-    //   const response = await axios.post(`/auth/book-appointment`, submitData, {
-    //     headers: {
-    //       'Content-Type': 'application/json',
-    //       Authorization: authToken,
-    //     },
-    //   });
-
-    //   // console.log('booking response: ', response); // Keep for debugging if needed
-
-    //   if (response?.data?.status_code === 201) {
-    //     setModalVisible(false);
-    //     Toast.show({
-    //       type: 'success',
-    //       text1: 'Congratulations!',
-    //       text2: response?.data?.message,
-    //       position: 'top',
-    //       topOffset: 40,
-    //     });
-    //     navigation.navigate('Confirmation', {
-    //       selectedSlot: selectedSlot,
-    //       scheduleAt: scheduleAt,
-    //     });
-    //   } else {
-    //     Toast.show({
-    //       type: 'error',
-    //       text1: 'Booking Failed!',
-    //       text2: response?.data?.message || 'Something went wrong.',
-    //       position: 'top',
-    //       topOffset: 40,
-    //     });
-    //   }
-    // } catch (error) {
-    //   console.error('Error confirming booking:', error);
-    //   Toast.show({
-    //     type: 'error',
-    //     text1: 'Error!',
-    //     text2: 'Could not book appointment. Please try again.',
-    //     position: 'top',
-    //     topOffset: 40,
-    //   });
-    // } finally {
-    //   setLoading(false);
-    // }
-  }, [selectedSlot, scheduleAt, counselor, authToken, navigation]);
-
-  // Calculate tab indicator width and position for animation
-  const tabWidth = width / 3; // Assuming 3 tabs, adjust if more
-
+  const tabWidth = width / 3;
   const translateX = tabIndicatorAnim.interpolate({
-    inputRange: [0, 1, 2], // For 3 tabs
+    inputRange: [0, 1, 2],
     outputRange: [0, tabWidth, tabWidth * 2],
   });
 
@@ -196,6 +128,7 @@ const CounselorDetails = ({ route }) => {
 
         {/* Scrollable Info */}
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
+
           {/* Image & Basic Info */}
           <View style={styles.basicInfoContainer}>
             <Image
@@ -209,13 +142,23 @@ const CounselorDetails = ({ route }) => {
                 {counselor?.counselorId?.gender === 'Male' ? `(He/Him)` : `(She/her)`}
               </Text>
             </Text>
-            <Text style={styles.counselorPrice}>
-              ₹500
-            </Text>
+            <Text style={styles.counselorPrice}>₹500</Text>
           </View>
 
           {/* Info Cards */}
           <View style={styles.infoCardsContainer}>
+
+            {/* --- ADDED: Experience Card --- */}
+            <View style={styles.infoCard}>
+              <Ionicons name="briefcase-outline" size={20} color={'#000'} style={styles.infoCardIcon} />
+              <View style={styles.infoCardTextContainer}>
+                <Text style={styles.infoCardTitle}>Experience</Text>
+                <Text style={styles.infoCardContent}>
+                  {counselor?.experience}+ Years
+                </Text>
+              </View>
+            </View>
+
             {/* Education */}
             <View style={styles.infoCard}>
               <Ionicons name="school-outline" size={20} color={'#000'} style={styles.infoCardIcon} />
@@ -265,7 +208,6 @@ const CounselorDetails = ({ route }) => {
                   </Text>
                 </TouchableOpacity>
               ))}
-              {/* Animated Tab Indicator */}
               <Animated.View
                 style={[
                   styles.tabIndicator,
@@ -318,7 +260,7 @@ const CounselorDetails = ({ route }) => {
           </View>
         </ScrollView>
 
-        {/* Schedule Appointment Button */}
+        {/* Schedule Button */}
         <View style={styles.scheduleButtonWrapper}>
           <TouchableOpacity onPress={toggleModal}>
             <LinearGradient
@@ -339,7 +281,7 @@ const CounselorDetails = ({ route }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Modal - Conditionally rendered for performance */}
+        {/* Modal */}
         {isModalVisible && (
           <Modal
             isVisible={isModalVisible}
@@ -352,19 +294,16 @@ const CounselorDetails = ({ route }) => {
             hideModalContentWhileAnimating={true}
             style={styles.modalStyle}>
             <View style={styles.modalContent}>
-              {/* Close Button */}
               <TouchableOpacity onPress={toggleModal} style={styles.modalCloseButton}>
                 <Ionicons name="close-circle-outline" size={28} color="#888" />
               </TouchableOpacity>
 
-              {/* Date */}
               {formattedSlots?.length > 0 && (
                 <Text style={styles.modalDateText}>
                   Select a Time Slot for {formattedDate}
                 </Text>
               )}
 
-              {/* Slots */}
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.modalSlotsScrollView}>
@@ -377,9 +316,7 @@ const CounselorDetails = ({ route }) => {
                         styles.slotItem,
                         selectedSlot === slot && styles.selectedSlotItem,
                       ]}>
-                      <Text style={styles.slotText}>
-                        {slot}
-                      </Text>
+                      <Text style={styles.slotText}>{slot}</Text>
                     </TouchableOpacity>
                   ))
                 ) : (
@@ -387,7 +324,6 @@ const CounselorDetails = ({ route }) => {
                 )}
               </ScrollView>
 
-              {/* Confirm Button */}
               <TouchableOpacity
                 onPress={confirmBooking}
                 disabled={!selectedSlot || loading}
@@ -453,8 +389,8 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 75,
-    borderWidth: 3, // Added a subtle border
-    borderColor: primary, // Border color from theme
+    borderWidth: 3,
+    borderColor: primary,
   },
   counselorName: {
     fontSize: responsiveFontSize(2.5),
@@ -465,30 +401,30 @@ const styles = StyleSheet.create({
   genderPronouns: {
     fontSize: responsiveFontSize(1.7),
     fontFamily: 'Poppins-Medium',
-    color: '#555', // Slightly darker for better readability
+    color: '#555',
   },
   counselorPrice: {
     fontSize: responsiveFontSize(2),
     fontFamily: 'Poppins-SemiBold',
     color: '#333',
-    marginTop: 5, // Added a small margin
+    marginTop: 5,
   },
   infoCardsContainer: {
     marginVertical: 20,
   },
   infoCard: {
     backgroundColor: '#e5f7f7',
-    padding: 15, // Consistent padding
-    borderRadius: 18, // Consistent border radius
-    elevation: 4, // Increased elevation for better shadow on Android
-    shadowColor: '#000', // iOS shadow
+    padding: 15,
+    borderRadius: 18,
+    elevation: 4,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     flexDirection: 'row',
     marginBottom: 15,
     marginHorizontal: 20,
-    alignItems: 'flex-start', // Align icon to top
+    alignItems: 'flex-start',
   },
   infoCardIcon: {
     marginTop: 2,
@@ -507,28 +443,28 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(1.8),
     fontFamily: 'Poppins-Medium',
     color: '#555',
-    lineHeight: responsiveFontSize(2.5), // Added line height for readability
+    lineHeight: responsiveFontSize(2.5),
   },
   tabsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 10, // Increased margin for spacing
+    marginBottom: 10,
     marginTop: 10,
-    position: 'relative', // For absolute positioning of indicator
-    borderBottomWidth: 1, // Subtle separator line
+    position: 'relative',
+    borderBottomWidth: 1,
     borderColor: '#eee',
     paddingBottom: 5,
   },
   tabButton: {
     paddingVertical: 8,
-    paddingHorizontal: 5, // Adjusted padding for better touch target
+    paddingHorizontal: 5,
   },
   tabText: {
     fontSize: responsiveFontSize(2.1),
-    fontFamily: 'Poppins-SemiBold', // Changed inactive to SemiBold
+    fontFamily: 'Poppins-SemiBold',
   },
   activeTabText: {
-    color: primary, // Use primary color for active tab
+    color: primary,
   },
   inactiveTabText: {
     color: '#999',
@@ -536,7 +472,7 @@ const styles = StyleSheet.create({
   tabIndicator: {
     position: 'absolute',
     height: 3,
-    backgroundColor: primary, // Indicator color from theme
+    backgroundColor: primary,
     bottom: 0,
     left: 0,
     borderRadius: 2,
@@ -550,13 +486,13 @@ const styles = StyleSheet.create({
   },
   tabContentPage: {
     width: width,
-    paddingHorizontal: 15, // Increased padding
+    paddingHorizontal: 15,
   },
   tabContentText: {
     fontSize: responsiveFontSize(1.8),
     fontFamily: 'Poppins-Medium',
-    color: '#333', // Slightly darker for better readability
-    lineHeight: responsiveFontSize(2.5), // Added line height
+    color: '#333',
+    lineHeight: responsiveFontSize(2.5),
   },
   scheduleButtonWrapper: {
     position: 'absolute',
@@ -579,13 +515,13 @@ const styles = StyleSheet.create({
     height: Platform.OS === 'ios' ? 65 : 55
   },
   scheduleButtonIcon: {
-    marginRight: 10, // Increased margin
+    marginRight: 10,
   },
   scheduleButtonText: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: responsiveFontSize(2.2), // Slightly larger font
+    fontSize: responsiveFontSize(2.2),
     color: '#fff',
-    paddingTop: 2, // Fine-tune vertical alignment
+    paddingTop: 2,
   },
   modalStyle: {
     justifyContent: 'center',
@@ -597,9 +533,9 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     paddingHorizontal: 25,
     paddingVertical: 20,
-    width: '88%', // Slightly wider
-    maxHeight: '75%', // Allow a bit more height
-    shadowColor: '#000', // iOS shadow for modal
+    width: '88%',
+    maxHeight: '75%',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -614,33 +550,33 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   modalDateText: {
-    fontSize: responsiveFontSize(2.3), // Slightly larger font
+    fontSize: responsiveFontSize(2.3),
     fontFamily: 'Poppins-SemiBold',
-    marginBottom: 18, // Increased margin
+    marginBottom: 18,
     marginTop: 25,
     textAlign: 'center',
     color: primary,
   },
   modalSlotsScrollView: {
-    paddingBottom: 10, // Reduced padding as confirm button has margin
+    paddingBottom: 10,
   },
   slotItem: {
-    paddingHorizontal: 16, // Increased padding
-    marginVertical: 7, // Increased margin
-    borderWidth: 1.5, // Slightly thicker border
+    paddingHorizontal: 16,
+    marginVertical: 7,
+    borderWidth: 1.5,
     borderColor: '#ccc',
-    borderRadius: 15, // Consistent border radius
+    borderRadius: 15,
     backgroundColor: '#fff',
-    paddingVertical: 14, // Increased padding
+    paddingVertical: 14,
   },
   selectedSlotItem: {
     borderColor: '#4CAF50',
     backgroundColor: '#e8f5e9',
   },
   slotText: {
-    fontSize: responsiveFontSize(1.9), // Slightly larger font
+    fontSize: responsiveFontSize(1.9),
     fontFamily: 'Poppins-Medium',
-    color: '#333', // Darker for better contrast
+    color: '#333',
   },
   noSlotsText: {
     fontSize: responsiveFontSize(1.8),
@@ -653,20 +589,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
     height: responsiveHeight(Platform.OS === 'ios' ? 7.5 : 7),
     borderRadius: Platform.OS === 'ios' ? 18 : 15,
-    marginTop: 20, // Use marginTop instead of marginVertical
+    marginTop: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    // <<< FIX: Added flexDirection to accommodate the icon
     flexDirection: 'row',
     gap: 8
   },
   confirmButtonDisabled: {
     backgroundColor: '#ccc',
-    height: responsiveHeight(Platform.OS === 'ios' ? 7.5 : 7), // Slightly taller button
+    height: responsiveHeight(Platform.OS === 'ios' ? 7.5 : 7),
   },
   confirmButtonText: {
     color: '#fff',
-    fontSize: responsiveFontSize(2.2), // Slightly larger font
+    fontSize: responsiveFontSize(2.2),
     fontFamily: 'Poppins-SemiBold',
   },
 });

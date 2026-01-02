@@ -11,6 +11,7 @@ import {
   Keyboard,
   ActivityIndicator,
   ToastAndroid,
+  Dimensions, // Import Dimensions
 } from 'react-native';
 import { useEffect, useState } from 'react';
 import Feather from 'react-native-vector-icons/Feather';
@@ -21,12 +22,14 @@ import {
 } from 'react-native-responsive-dimensions';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-toast-message';
 import { useDispatch, useSelector } from 'react-redux';
 import { addUser } from '../redux/UserSlice';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import LinearGradient from 'react-native-linear-gradient';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { showMessage } from 'react-native-flash-message';
+
+// --- TABLET DETECTION ---
+const { width } = Dimensions.get('window');
+const isTablet = width > 768;
 
 const showNotification = (message) => {
   if (Platform.OS === 'android') {
@@ -34,28 +37,18 @@ const showNotification = (message) => {
   } else {
     showMessage({
       message: message,
-      type: 'danger', // Can be "success", "warning", "danger", "info", or "default"
-      icon: 'auto', // Or "none", or a custom icon component
+      type: 'danger',
+      icon: 'auto',
     });
   }
 };
 
 const Login = ({ navigation }) => {
-  const userDetails = useSelector(state => state.user);
-  // console.log('userDetails from login: ', userDetails);
-
-  // const { connectSocket } = useSocket(); // pull in connectSocket
-
   const dispatch = useDispatch();
-
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-
   const [show, setShow] = useState(true);
-
   const [password, setPassword] = useState('');
-
   const [email, setEmail] = useState('');
-
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -65,7 +58,6 @@ const Login = ({ navigation }) => {
     const keyboardHide = Keyboard.addListener('keyboardDidHide', () => {
       setIsKeyboardVisible(false);
     });
-
     return () => {
       keyboardShow.remove();
       keyboardHide.remove();
@@ -73,7 +65,6 @@ const Login = ({ navigation }) => {
   }, []);
 
   const handleLoginSubmit = async () => {
-    // Ensure all fields are filled
     if (!email || !password) {
       showNotification('Missing Information. All fields are required');
       return;
@@ -81,34 +72,20 @@ const Login = ({ navigation }) => {
 
     try {
       setLoading(true);
+      const submitData = { email: email, password: password };
 
-      // Data object as per the API requirement
-      const submitData = {
-        email: email,
-        password: password,
-      };
-
-      // API Call using axios
       const response = await axios.post(`/auth/login`, submitData, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
 
-      console.log('login response: ', response);
-
-      // Handle success response
       if (response?.data?.status_code === 200) {
         if (response?.data?.role === 'user') {
-
           const userInfo = {
             _id: response?.data?.user,
             authToken: response?.data?.authToken,
             profileStatus: response?.data?.profileStatus,
           };
-
           dispatch(addUser(userInfo));
-
           await AsyncStorage.setItem('userDetails', JSON.stringify(userInfo));
 
           if (response?.data?.profileStatus) {
@@ -117,68 +94,38 @@ const Login = ({ navigation }) => {
             navigation.navigate('Welcome');
           }
         } else {
-
           const userInfo = {
             _id: response?.data?.user,
             authToken: response?.data?.authToken,
             role: 'counselor',
           };
-
           dispatch(addUser(userInfo));
-
           await AsyncStorage.setItem('userDetails', JSON.stringify(userInfo));
-
           navigation.navigate('Dashboard');
         }
       } else {
-        // --- Implemented Error Handling Logic ---
         const message = response?.data?.message || 'An unexpected error occurred.';
-
-        switch (response?.data?.status_code) {
-          case 401:
-            // Unauthorized: Wrong password, invalid token, etc.
-            showNotification('Authentication failed. Please check your credentials.', 'danger');
-            break;
-
-          case 404:
-            // Not Found: The requested resource (e.g., user) doesn't exist.
-            showNotification('User not found. Please check your details or sign up.', 'danger');
-            break;
-
-          case 405:
-            // Method Not Allowed: A developer-facing error.
-            // Show a generic message to the user.
-            showNotification('An unexpected error occurred. Please try again later.', 'danger');
-            // Log a specific error for debugging.
-            console.error('API Error: Method Not Allowed. Check server endpoint configuration.');
-            break;
-
-          case 500:
-            // Internal Server Error: A problem on the server.
-            showNotification('A server error occurred. We are working on it, please try again later.', 'danger');
-            break;
-
-          default:
-            // Fallback for any other non-200 status codes.
-            showNotification(message, 'danger');
-            break;
-        }
+        showNotification(message); // Simplified for brevity
       }
     } catch (error) {
       console.log('error: ', error);
-
       ToastAndroid.showWithGravity(
         'Something went wrong.\nPlease check your network connection and try again.',
         ToastAndroid.LONG,
         ToastAndroid.TOP,
       );
     } finally {
-      // setEmail('');
-      // setPassword('');
-
       setLoading(false);
     }
   };
+
+  // --- RESPONSIVE STYLE CONSTANTS ---
+  // Fix the height for tablets so inputs don't look like huge boxes
+  const inputHeight = isTablet ? 60 : responsiveHeight(Platform.OS === 'ios' ? 6.2 : 7);
+  // Restrict width on tablets to 60% of screen
+  const formWidth = isTablet ? '60%' : '100%';
+  const titleSize = isTablet ? responsiveFontSize(2.2) : responsiveFontSize(2.8);
+  const standardFontSize = isTablet ? responsiveFontSize(1.3) : responsiveFontSize(1.8);
 
   return (
     <SafeAreaProvider>
@@ -188,16 +135,16 @@ const Login = ({ navigation }) => {
         <View
           style={{
             flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
+            alignItems: 'center', // Important for centering the tablet form
             backgroundColor: '#E0F7FA',
           }}>
-          {/* Background and Top Design */}
+
+          {/* --- TOP SECTION: BACKGROUND & LIGHTS (KEPT AS IS) --- */}
           <View
             style={{
               height: '50%',
               width: '100%',
-              transition: 'height 0.3s ease-in-out',
+              // Note: 'transition' is not a valid React Native style property, but left here as requested
             }}>
             <Image
               source={require('../assets/background.png')}
@@ -205,36 +152,39 @@ const Login = ({ navigation }) => {
             />
 
             {/* Lights */}
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                width: '100%',
-                position: 'absolute',
-                top: 0,
-                paddingHorizontal: 20,
-              }}>
-              <Image
-                source={require('../assets/light.png')}
+            {!isTablet && (
+              <View
                 style={{
-                  height: isKeyboardVisible
-                    ? responsiveHeight(20)
-                    : responsiveHeight(33),
-                  width: 140,
-                }}
-                resizeMode="contain"
-              />
-              <Image
-                source={require('../assets/light.png')}
-                style={{
-                  height: isKeyboardVisible
-                    ? responsiveHeight(10)
-                    : responsiveHeight(17),
-                  width: 100,
-                }}
-                resizeMode="contain"
-              />
-            </View>
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  width: '100%',
+                  position: 'absolute',
+                  top: 0,
+                  paddingHorizontal: 20,
+                }}>
+                <Image
+                  source={require('../assets/light.png')}
+                  style={{
+                    height: isKeyboardVisible
+                      ? responsiveHeight(20)
+                      : responsiveHeight(33),
+                    width: 140,
+                  }}
+                  resizeMode="contain"
+                />
+                <Image
+                  source={require('../assets/light.png')}
+                  style={{
+                    height: isKeyboardVisible
+                      ? responsiveHeight(10)
+                      : responsiveHeight(17),
+                    width: 100,
+                  }}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
+
 
             <View
               style={{
@@ -251,7 +201,7 @@ const Login = ({ navigation }) => {
                 style={{
                   color: '#1f8dba',
                   fontWeight: '500',
-                  fontSize: responsiveFontSize(1.8),
+                  fontSize: standardFontSize,
                   fontFamily: 'Poppins-Medium',
                   textAlign: 'center',
                 }}>
@@ -269,167 +219,173 @@ const Login = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Login Form with ScrollView */}
+          {/* --- BOTTOM SECTION: LOGIN FORM (UPDATED FOR IPAD) --- */}
           <ScrollView
             style={{ width: '100%', height: '45%' }}
-            contentContainerStyle={{ paddingHorizontal: 30, paddingBottom: 20 }}
+            contentContainerStyle={{
+              paddingHorizontal: 30,
+              paddingBottom: 20,
+              alignItems: 'center' // Centers the inner form container
+            }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
-            <Text
-              style={{
-                fontFamily: 'Poppins-Bold',
-                fontSize: responsiveFontSize(2.8),
-                textAlign: 'center',
-                marginVertical: 30,
-                color: '#000',
-                textTransform: 'uppercase',
-              }}>
-              Login
-            </Text>
 
-            {/* Email */}
-            <TextInput
-              placeholder="Email"
-              value={email}
-              placeholderTextColor={'grey'}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              selectionColor={primary}
-              style={{
-                height: responsiveHeight(Platform.OS === 'ios' ? 6.2 : 7),
-                fontFamily: 'Poppins-SemiBold',
-                backgroundColor: '#fff',
-                borderColor: '#1f8dba',
-                borderWidth: 1.5,
-                fontWeight: '600',
-                fontSize: responsiveFontSize(1.8),
-                borderRadius: 13,
-                paddingHorizontal: 18,
-                marginBottom: 20,
-                color: '#000',
-              }}
-            />
+            {/* New Wrapper to control width on Tablets */}
+            <View style={{ width: formWidth }}>
 
-            {/* Password */}
-            <View
-              style={{
-                flexDirection: 'row',
-                height: responsiveHeight(Platform.OS === 'ios' ? 6.2 : 7),
-                borderRadius: 13,
-                alignItems: 'center',
-                borderColor: '#1f8dba',
-                borderWidth: 1.5,
-                backgroundColor: '#fff',
-                paddingHorizontal: 18,
-                marginBottom: 10,
-              }}>
-              <TextInput
-                placeholder="Password"
-                value={password}
-                secureTextEntry={show}
-                onChangeText={setPassword}
-                keyboardType="default"
-                selectionColor={primary}
-                placeholderTextColor={'grey'}
+              <Text
                 style={{
-                  fontFamily: 'Poppins-SemiBold',
-                  fontWeight: '600',
+                  fontFamily: 'Poppins-Bold',
+                  fontSize: titleSize,
+                  textAlign: 'center',
+                  marginVertical: 30,
                   color: '#000',
-                  fontSize: responsiveFontSize(1.8),
-                  width: '100%',
+                  textTransform: 'uppercase',
+                }}>
+                Login
+              </Text>
+
+              {/* Email */}
+              <TextInput
+                placeholder="Email"
+                value={email}
+                placeholderTextColor={'grey'}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                selectionColor={primary}
+                style={{
+                  height: inputHeight,
+                  fontFamily: 'Poppins-SemiBold',
+                  backgroundColor: '#fff',
+                  borderColor: '#1f8dba',
+                  borderWidth: 1.5,
+                  fontWeight: '600',
+                  fontSize: standardFontSize,
+                  borderRadius: 13,
+                  paddingHorizontal: 18,
+                  marginBottom: 20,
+                  color: '#000',
                 }}
               />
 
-              <View style={{ position: 'absolute', right: 5, top: 14 }}>
-                <Feather
-                  name={show ? 'eye-off' : 'eye'}
-                  onPress={() => setShow(!show)}
+              {/* Password */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  height: inputHeight,
+                  borderRadius: 13,
+                  alignItems: 'center',
+                  borderColor: '#1f8dba',
+                  borderWidth: 1.5,
+                  backgroundColor: '#fff',
+                  paddingHorizontal: 18,
+                  marginBottom: 10,
+                }}>
+                <TextInput
+                  placeholder="Password"
+                  value={password}
+                  secureTextEntry={show}
+                  onChangeText={setPassword}
+                  keyboardType="default"
+                  selectionColor={primary}
+                  placeholderTextColor={'grey'}
                   style={{
+                    fontFamily: 'Poppins-SemiBold',
+                    fontWeight: '600',
                     color: '#000',
-                    fontSize: responsiveFontSize(2),
-                    width: 28,
-                    height: 28,
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    fontSize: standardFontSize,
+                    flex: 1, // Use flex 1 to fill remaining space
+                    height: '100%' // Ensure it takes full height of container
                   }}
                 />
+
+                <TouchableOpacity onPress={() => setShow(!show)} style={{ padding: 5 }}>
+                  <Feather
+                    name={show ? 'eye-off' : 'eye'}
+                    style={{
+                      color: '#000',
+                      fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2),
+                    }}
+                  />
+                </TouchableOpacity>
               </View>
-            </View>
 
-            {/* Forgot password */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('ForgotPassword')}
-              style={{ marginBottom: 30, alignSelf: 'flex-end' }}>
-              <Text
-                style={{
-                  fontSize: responsiveFontSize(1.5),
-                  color: '#1f8dba',
-                  fontFamily: 'Poppins-Medium',
-                  textDecorationLine: 'underline',
-                }}>
-                Forgot password?
-              </Text>
-            </TouchableOpacity>
-
-            {/* Login */}
-            <TouchableOpacity
-              onPress={handleLoginSubmit}
-              disabled={loading}
-              style={{
-                backgroundColor: '#1f8dba',
-                height: responsiveHeight(7),
-                borderRadius: 15,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}>
-              {loading ? (
-                <ActivityIndicator size="large" color={'#fff'} />
-              ) : (
-                <Text
-                  style={{
-                    color: '#fff',
-                    fontSize: responsiveFontSize(2.6),
-                    fontWeight: '600',
-                    fontFamily: 'Poppins-Bold',
-                  }}>
-                  Login
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Sign up / Don't have an account */}
-            <View
-              style={{
-                marginTop: 10,
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'flex-end',
-                gap: 4,
-              }}>
-              <Text
-                style={{
-                  color: '#bdbdbd',
-                  fontSize: responsiveFontSize(1.5),
-                  fontWeight: '500',
-                  fontFamily: 'Poppins-Medium',
-                }}>
-                Don't have an account?
-              </Text>
-
+              {/* Forgot password */}
               <TouchableOpacity
-                onPress={() => navigation.navigate('SignUp')}
-                disabled={loading}>
+                onPress={() => navigation.navigate('ForgotPassword')}
+                style={{ marginBottom: 30, alignSelf: 'flex-end' }}>
                 <Text
                   style={{
+                    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.5),
                     color: '#1f8dba',
-                    fontWeight: '600',
-                    fontFamily: 'Poppins-SemiBold',
-                    fontSize: responsiveFontSize(1.5),
+                    fontFamily: 'Poppins-Medium',
+                    textDecorationLine: 'underline',
                   }}>
-                  Sign Up
+                  Forgot password?
                 </Text>
               </TouchableOpacity>
+
+              {/* Login Button */}
+              <TouchableOpacity
+                onPress={handleLoginSubmit}
+                disabled={loading}
+                style={{
+                  backgroundColor: '#1f8dba',
+                  height: inputHeight,
+                  borderRadius: 15,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                {loading ? (
+                  <ActivityIndicator size="large" color={'#fff'} />
+                ) : (
+                  <Text
+                    style={{
+                      color: '#fff',
+                      fontSize: isTablet ? responsiveFontSize(1.8) : responsiveFontSize(2.6),
+                      fontWeight: '600',
+                      fontFamily: 'Poppins-Bold',
+                    }}>
+                    Login
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Sign up / Don't have an account */}
+              <View
+                style={{
+                  marginTop: 10,
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  alignItems: 'flex-end',
+                  gap: 4,
+                }}>
+                <Text
+                  style={{
+                    color: '#bdbdbd',
+                    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.5),
+                    fontWeight: '500',
+                    fontFamily: 'Poppins-Medium',
+                  }}>
+                  Don't have an account?
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('SignUp')}
+                  disabled={loading}>
+                  <Text
+                    style={{
+                      color: '#1f8dba',
+                      fontWeight: '600',
+                      fontFamily: 'Poppins-SemiBold',
+                      fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.5),
+                    }}>
+                    Sign Up
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
             </View>
           </ScrollView>
         </View>

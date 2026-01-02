@@ -13,7 +13,7 @@ import {
   TextInput,
   Platform,
   Alert,
-  ToastAndroid,
+  Dimensions, // Import Dimensions
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -27,9 +27,12 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { fetchCounselors } from '../utils/fetchCounselors';
 import { primary } from '../utils/colors';
 import axios from 'axios';
-import { showMessage } from "react-native-flash-message";
 import InfoModal from '../components/InfoModal';
 import ConfirmationModal from '../components/ConfirmationModal';
+
+// --- 1. Tablet Detection ---
+const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
 
 // A custom hook for debouncing input
 const useDebounce = (value, delay) => {
@@ -194,31 +197,17 @@ const Boost = () => {
 
         // Check if firstSessionTime exists in the response
         if (responseData?.firstSessionTime) {
-          // The timestamp is in "DD/MM/YYYY, HH:mm:ss" format
           const firstSessionTimeStr = responseData.firstSessionTime;
-
-          // Split the string into date and time parts
           const [datePart, timePart] = firstSessionTimeStr.split(', ');
-
-          // Split the date part into day, month, and year
           const [day, month, year] = datePart.split('/');
 
-          // CORRECTED PART: Create a robust ISO 8601 date string
           const isoDateString = `${year}-${month}-${day}T${timePart}`;
           const firstSessionDate = new Date(isoDateString);
 
-          // Check if the date is valid before comparing
           if (!isNaN(firstSessionDate.getTime())) {
-            // Get the current time
             const now = new Date();
-
-            // Calculate the difference in milliseconds
             const differenceInMs = now.getTime() - firstSessionDate.getTime();
-
-            // Milliseconds in 24 hours (24 * 60 * 60 * 1000)
             const twentyFourHoursInMs = 86400000;
-
-            // Update hasPassed24Hours based on the comparison
             hasPassed24Hours = differenceInMs > twentyFourHoursInMs;
           } else {
             console.error("Failed to parse the date:", firstSessionTimeStr);
@@ -233,7 +222,7 @@ const Boost = () => {
               id: id,
               name: item?.counselorId?.name,
               pic: item?.counselorId?.pic,
-              amount: 99 //to be changed
+              amount: 99
             });
           } else {
             if (!responseData?.isExpired) {
@@ -256,11 +245,9 @@ const Boost = () => {
           Alert.alert("Error", "Could not retrieve session details. Please try again.");
         }
       } catch (error) {
-        // Handle non-2xx status codes
         console.log('error: ', error);
 
         if (error?.response && error?.response?.status === 404) {
-          // This means the user has never paid for this counselor before
           navigation.navigate('BoostPayment', {
             id: id,
             name: item?.counselorId?.name,
@@ -275,49 +262,53 @@ const Boost = () => {
         setLoadingCounselorId(null);
       }
     };
+
     return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Image
-            source={{ uri: item?.counselorId?.pic }}
-            style={styles.avatar}
-          />
-          <View style={styles.headerTextContainer}>
-            {renderHighlightedName(item?.counselorId?.name, debouncedSearchQuery)}
-            <View style={styles.onlineBadge}>
-              <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>Online</Text>
+      // --- 2. Card Wrapper for Tablet Constraint ---
+      <View style={styles.cardWrapper}>
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Image
+              source={{ uri: item?.counselorId?.pic }}
+              style={styles.avatar}
+            />
+            <View style={styles.headerTextContainer}>
+              {renderHighlightedName(item?.counselorId?.name, debouncedSearchQuery)}
+              <View style={styles.onlineBadge}>
+                <View style={styles.onlineDot} />
+                <Text style={styles.onlineText}>Online</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <View style={styles.cardBody}>
-          <View style={styles.infoRow}>
-            <Ionicons name="sparkles-outline" style={styles.infoIcon} />
-            <Text style={styles.infoText} numberOfLines={2}>
-              {item.speciality?.join(', ') || 'General Wellness'}
-            </Text>
+          <View style={styles.cardBody}>
+            <View style={styles.infoRow}>
+              <Ionicons name="sparkles-outline" style={styles.infoIcon} />
+              <Text style={styles.infoText} numberOfLines={2}>
+                {item.speciality?.join(', ') || 'General Wellness'}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Ionicons name="cash-outline" style={styles.infoIcon} />
+              <Text style={styles.infoText}>
+                Quick Boost Session: <Text style={{ fontFamily: 'Poppins-Bold' }}>₹99</Text>
+              </Text>
+            </View>
           </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="cash-outline" style={styles.infoIcon} />
-            <Text style={styles.infoText}>
-              Quick Boost Session: <Text style={{ fontFamily: 'Poppins-Bold' }}>₹99</Text>
-            </Text>
-          </View>
-        </View>
 
-        <Pressable
-          style={({ pressed }) => [styles.chatButton, pressed && styles.chatButtonPressed]}
-          onPress={onPayToChatButtonPressed}
-          disabled={loadingCounselorId !== null}
-        >
-          {isCurrentlyLoading ? <ActivityIndicator size={'small'} color={'#fff'} /> : (
-            <>
-              <Ionicons name="chatbubble-ellipses-outline" size={22} color="#FFFFFF" />
-              <Text style={styles.chatButtonText}>Initiate Session</Text>
-            </>
-          )}
-        </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.chatButton, pressed && styles.chatButtonPressed]}
+            onPress={onPayToChatButtonPressed}
+            disabled={loadingCounselorId !== null}
+          >
+            {isCurrentlyLoading ? <ActivityIndicator size={'small'} color={'#fff'} /> : (
+              <>
+                <Ionicons name="chatbubble-ellipses-outline" size={isTablet ? 24 : 22} color="#FFFFFF" />
+                <Text style={styles.chatButtonText}>Initiate Session</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
       </View>
     );
   };
@@ -329,7 +320,7 @@ const Boost = () => {
 
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name={searchQuery ? "search-outline" : "moon-outline"} size={80} color="#9CA3AF" />
+      <Ionicons name={searchQuery ? "search-outline" : "moon-outline"} size={isTablet ? 120 : 80} color="#9CA3AF" />
       <Text style={styles.emptyTitle}>{searchQuery ? "No Match Found" : "No Counselors Online"}</Text>
       <Text style={styles.emptySubtitle}>
         {searchQuery ? "Try a different name or clear the search." : "Please check back later or pull down to refresh."}
@@ -345,7 +336,7 @@ const Boost = () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color={'#1F2937'} />
+            <Ionicons name="arrow-back" size={isTablet ? 28 : 22} color={'#1F2937'} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Quick Boost</Text>
           <View style={{ width: 40 }} />
@@ -451,12 +442,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    height: isTablet ? 70 : undefined,
   },
   backButton: {
     padding: 5,
   },
   headerTitle: {
-    fontSize: responsiveFontSize(2.3),
+    fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.3),
     fontFamily: 'Poppins-Bold',
     color: '#1F2937',
   },
@@ -476,19 +468,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Platform.OS === 'ios' ? 15 : 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    // REMOVED `paddingVertical: 0`. It's better to let the container size itself based on its content.
+    // --- Tablet Fix: Constrain Search Width ---
+    width: isTablet ? '70%' : '100%',
+    alignSelf: 'center',
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    // REMOVED: `height` property was fragile on smaller screens.
-    // height: responsiveHeight(Platform.OS === 'ios' ? 6 : 5.5), 
-
-    // ADDED: `paddingVertical` creates robust internal spacing that adapts to font size.
     paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    fontSize: responsiveFontSize(1.9),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.9),
     fontFamily: 'Poppins-Regular',
     color: '#1F2937',
   },
@@ -496,14 +486,19 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
   },
   listContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: isTablet ? 0 : 16, // Tablet handles horizontal spacing via wrapper
     paddingTop: 15,
     paddingBottom: responsiveHeight(13),
+  },
+  // --- Tablet Fix: Card Wrapper ---
+  cardWrapper: {
+    width: isTablet ? '70%' : '100%',
+    alignSelf: 'center',
   },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 16,
+    padding: isTablet ? 20 : 16,
     marginBottom: 20,
     elevation: 5,
     shadowColor: '#1F2937',
@@ -514,11 +509,13 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    // backgroundColor: 'red',
+    marginBottom: isTablet ? 10 : 0,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: isTablet ? 80 : 64,
+    height: isTablet ? 80 : 64,
+    borderRadius: isTablet ? 40 : 32,
     borderWidth: 2,
     borderColor: '#E5E7EB',
   },
@@ -527,7 +524,7 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   counselorName: {
-    fontSize: responsiveFontSize(2.1),
+    fontSize: isTablet ? responsiveFontSize(1.3) : responsiveFontSize(2.1),
     fontFamily: 'Poppins-Bold',
     color: '#111827',
   },
@@ -553,7 +550,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   onlineText: {
-    fontSize: responsiveFontSize(1.5),
+    fontSize: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.5),
     fontFamily: 'Poppins-SemiBold',
     color: '#047857',
   },
@@ -566,25 +563,26 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: isTablet ? 20 : 10,
+    marginTop: isTablet ? 10 : 0,
   },
   infoIcon: {
-    fontSize: 18,
+    fontSize: isTablet ? 22 : 18,
     color: primary,
     marginRight: 10,
     marginTop: 2,
   },
   infoText: {
     flex: 1,
-    fontSize: responsiveFontSize(1.7),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.7),
     fontFamily: 'Poppins-Medium',
     color: '#374151',
-    lineHeight: 22,
+    lineHeight: isTablet ? 26 : 22,
   },
   chatButton: {
     backgroundColor: primary,
     borderRadius: 14,
-    paddingVertical: Platform.OS === 'ios' ? 17 : 12,
+    height: isTablet ? responsiveHeight(5) : responsiveHeight(6),
     marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -595,7 +593,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#38babb',
   },
   chatButtonText: {
-    fontSize: responsiveFontSize(1.8),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.8),
     fontFamily: 'Poppins-Bold',
     color: '#FFFFFF',
     marginLeft: 8,
@@ -608,13 +606,13 @@ const styles = StyleSheet.create({
     height: responsiveHeight(50),
   },
   emptyTitle: {
-    fontSize: responsiveFontSize(2.4),
+    fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.4),
     fontFamily: 'Poppins-Bold',
     color: '#4B5563',
     marginTop: 16,
   },
   emptySubtitle: {
-    fontSize: responsiveFontSize(1.8),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.8),
     fontFamily: 'Poppins-Regular',
     color: '#9CA3AF',
     textAlign: 'center',

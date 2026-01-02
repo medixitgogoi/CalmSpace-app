@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, Dimensions } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import {
   responsiveFontSize,
@@ -7,6 +7,10 @@ import {
 } from 'react-native-responsive-dimensions';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { primary } from '../utils/colors';
+
+// --- 1. Tablet Detection ---
+const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
 
 const ProgressBar = ({ score, navigation }) => {
   let level = '';
@@ -75,68 +79,77 @@ const ProgressBar = ({ score, navigation }) => {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Title */}
-      <LinearGradient
-        colors={['#f0fdfd', '#dcf5f6', '#f0fdfd']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.titleContainer}>
-        <MaterialCommunityIcons
-          name="progress-check"
-          size={responsiveFontSize(2.5)}
-          color={primary}
-        />
-        <Text allowFontScaling={true} style={styles.titleText}>
-          Your Personalized Progress Bar
-        </Text>
-      </LinearGradient>
-
-      {/* Progress Bar */}
-      <View style={styles.progressBarContainer}>
+    // --- 2. Width Constraint Wrapper ---
+    <View style={styles.wrapper}>
+      <View style={styles.container}>
+        {/* Title */}
         <LinearGradient
-          colors={colors}
+          colors={['#f0fdfd', '#dcf5f6', '#f0fdfd']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={[styles.progressFill, { width: `${score}%` }]}
-        />
-        <Text
-          allowFontScaling={true}
-          style={[styles.progressText, { color: score < 50 ? '#333' : '#fff' }]}>
-          {score}%
+          style={styles.titleContainer}>
+          <MaterialCommunityIcons
+            name="progress-check"
+            size={isTablet ? 24 : responsiveFontSize(2.5)}
+            color={primary}
+          />
+          <Text allowFontScaling={true} style={styles.titleText}>
+            Your Personalized Progress Bar
+          </Text>
+        </LinearGradient>
+
+        {/* Progress Bar */}
+        <View style={styles.progressBarContainer}>
+          <LinearGradient
+            colors={colors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.progressFill, { width: `${score}%` }]}
+          />
+          <Text
+            allowFontScaling={true}
+            style={[styles.progressText, { color: score < 50 ? '#333' : '#fff' }]}>
+            {score}%
+          </Text>
+        </View>
+
+        {/* Level Description */}
+        <View style={styles.levelContainer}>
+          <Text allowFontScaling={false} style={styles.levelText}>
+            You are in the '
+          </Text>
+          <Text
+            allowFontScaling={false}
+            style={[styles.levelHighlight, { color: colors[1] }]}>
+            {level}
+          </Text>
+          <Text allowFontScaling={true} style={styles.levelText}>
+            ' zone
+          </Text>
+        </View>
+
+        {/* Suggestion */}
+        <Text allowFontScaling={true} style={styles.suggestionText}>
+          {suggestionContent}
         </Text>
       </View>
-
-      {/* Level Description */}
-      <View style={styles.levelContainer}>
-        <Text allowFontScaling={false} style={styles.levelText}>
-          You are in the '
-        </Text>
-        <Text
-          allowFontScaling={false}
-          style={[styles.levelHighlight, { color: colors[1] }]}>
-          {level}
-        </Text>
-        <Text allowFontScaling={true} style={styles.levelText}>
-          ' zone
-        </Text>
-      </View>
-
-      {/* Suggestion */}
-      <Text allowFontScaling={true} style={styles.suggestionText}>
-        {suggestionContent}
-      </Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  // Wrapper to handle centering on wide screens
+  wrapper: {
+    width: '100%',
+    alignItems: 'center',
+  },
   container: {
     paddingHorizontal: 20,
     paddingTop: 10,
     alignItems: 'center',
     paddingBottom: 15,
-    width: '100%',
+    // Tablet: Restrict width to 80% to look cleaner
+    width: isTablet ? '80%' : '100%',
   },
   titleContainer: {
     flexDirection: 'row',
@@ -151,13 +164,13 @@ const styles = StyleSheet.create({
     height: Platform.OS == 'ios' && responsiveHeight(5.5),
   },
   titleText: {
-    fontSize: responsiveFontSize(1.7),
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.7),
     fontFamily: 'Poppins-SemiBold',
     color: '#333',
   },
   progressBarContainer: {
     width: '100%',
-    height: 30,
+    height: isTablet ? 40 : 30, // Slightly taller on tablet
     backgroundColor: '#E0E0E0',
     borderRadius: 15,
     overflow: 'hidden',
@@ -169,7 +182,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   progressText: {
-    fontSize: responsiveFontSize(1.8),
+    fontSize: isTablet ? responsiveFontSize(1.3) : responsiveFontSize(1.8),
     fontFamily: 'Poppins-Bold',
     textAlign: 'center',
     width: '100%',
@@ -181,28 +194,26 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   levelText: {
-    fontSize: responsiveFontSize(1.5),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.5),
     fontFamily: 'Poppins-Medium',
     color: '#666',
   },
   levelHighlight: {
-    fontSize: responsiveFontSize(1.7),
+    fontSize: isTablet ? responsiveFontSize(1.3) : responsiveFontSize(1.7),
     fontFamily: 'Poppins-Bold',
   },
   suggestionText: {
-    fontSize: responsiveFontSize(1.6),
-    fontFamily: 'Poppins-Regular', // Changed from Light for better readability
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.6),
+    fontFamily: 'Poppins-Regular',
     color: '#555',
     textAlign: 'center',
     marginTop: 8,
-    // --- FIX: This is the key to aligning the text vertically ---
-    lineHeight: responsiveFontSize(2.5),
+    lineHeight: isTablet ? responsiveFontSize(2.0) : responsiveFontSize(2.5),
   },
   highlightText: {
-    // This style is now applied to the nested <Text> component
-    fontFamily: 'Poppins-Bold', // Bolder font for emphasis
+    fontFamily: 'Poppins-Bold',
     color: primary,
-    fontSize: responsiveFontSize(1.6), // Keep font size consistent
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.6),
   },
 });
 

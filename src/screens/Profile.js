@@ -12,6 +12,7 @@ import {
   Platform,
   Linking,
   Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -24,6 +25,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { fetchUserData } from '../utils/fetchUserData';
 import { disconnectSocket } from '../redux/socketSlice';
 import FallbackPrompt from '../components/FallbackPrompt';
+
+// 1. Detect Tablet
+const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
 
 const Profile = ({ navigation }) => {
   const userDetails = useSelector(state => state.user);
@@ -147,7 +152,7 @@ const Profile = ({ navigation }) => {
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.headerButton}>
-            <Ionicons name="arrow-back" size={20} color={'#333'} />
+            <Ionicons name="arrow-back" size={isTablet ? 28 : 20} color={'#333'} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Profile</Text>
           <View style={styles.headerButton} />
@@ -157,57 +162,63 @@ const Profile = ({ navigation }) => {
           <FallbackPrompt />
         ) : (
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <View style={styles.profileHeader}>
-              <Image
-                source={profileImageSource}
-                style={styles.profileImage}
-                resizeMode='contain'
-              />
-              <Text style={styles.profileName}>{userName || 'User'}</Text>
-              <Text style={styles.profileEmail}>{userEmail}</Text>
-            </View>
 
-            <View style={styles.menuCard}>
-              {menuItems.map((item, index) => (
-                <View key={item.title}>
-                  <TouchableOpacity onPress={item.onPress} style={styles.menuItem}>
-                    <View style={styles.menuIconWrapper}>
-                      <Ionicons
-                        name={item.icon}
-                        size={18}
-                        color={primary}
-                      />
-                    </View>
-                    <Text style={styles.menuItemText}>{item.title}</Text>
-                    <Ionicons name="chevron-forward" size={20} color="#BDBDBD" />
-                  </TouchableOpacity>
-                  {index < menuItems.length - 1 && <View style={styles.separator} />}
-                </View>
-              ))}
-            </View>
+            {/* 2. Tablet Wrapper: Centers content and restricts width on iPad */}
+            <View style={isTablet ? styles.tabletContainer : styles.mobileContainer}>
 
-            <View style={{ ...styles.menuCard, marginTop: 10 }}>
-              {appItems.map((item, index) => (
-                <View key={item.title}>
-                  <TouchableOpacity onPress={item.onPress} style={styles.menuItem}>
-                    <View style={styles.menuIconWrapper}>
-                      <Ionicons
-                        name={item.icon}
-                        size={18}
-                        color={primary}
-                      />
-                    </View>
-                    <Text style={styles.menuItemText}>{item.title}</Text>
-                    <Ionicons name="chevron-forward" size={20} color="#BDBDBD" />
-                  </TouchableOpacity>
-                  {index < appItems.length - 1 && <View style={styles.separator} />}
-                </View>
-              ))}
-            </View>
+              <View style={styles.profileHeader}>
+                <Image
+                  source={profileImageSource}
+                  style={styles.profileImage}
+                  resizeMode='contain'
+                />
+                <Text style={styles.profileName}>{userName || 'User'}</Text>
+                <Text style={styles.profileEmail}>{userEmail}</Text>
+              </View>
 
-            <View style={styles.footerContainer}>
-              <Text style={styles.footerText}>Made with ❤️ from Calmspace</Text>
-              <Text style={styles.versionText}>App Version: 6.1.1</Text>
+              <View style={styles.menuCard}>
+                {menuItems.map((item, index) => (
+                  <View key={item.title}>
+                    <TouchableOpacity onPress={item.onPress} style={styles.menuItem}>
+                      <View style={styles.menuIconWrapper}>
+                        <Ionicons
+                          name={item.icon}
+                          size={isTablet ? 22 : 18}
+                          color={primary}
+                        />
+                      </View>
+                      <Text style={styles.menuItemText}>{item.title}</Text>
+                      <Ionicons name="chevron-forward" size={isTablet ? 24 : 20} color="#BDBDBD" />
+                    </TouchableOpacity>
+                    {index < menuItems.length - 1 && <View style={styles.separator} />}
+                  </View>
+                ))}
+              </View>
+
+              <View style={{ ...styles.menuCard, marginTop: 10 }}>
+                {appItems.map((item, index) => (
+                  <View key={item.title}>
+                    <TouchableOpacity onPress={item.onPress} style={styles.menuItem}>
+                      <View style={styles.menuIconWrapper}>
+                        <Ionicons
+                          name={item.icon}
+                          size={isTablet ? 22 : 18}
+                          color={primary}
+                        />
+                      </View>
+                      <Text style={styles.menuItemText}>{item.title}</Text>
+                      <Ionicons name="chevron-forward" size={isTablet ? 24 : 20} color="#BDBDBD" />
+                    </TouchableOpacity>
+                    {index < appItems.length - 1 && <View style={styles.separator} />}
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.footerContainer}>
+                <Text style={styles.footerText}>Made with ❤️ from Calmspace</Text>
+                <Text style={styles.versionText}>App Version: 6.1.1</Text>
+              </View>
+
             </View>
           </ScrollView>
         )}
@@ -217,7 +228,7 @@ const Profile = ({ navigation }) => {
           style={styles.logoutButton}>
           <Ionicons
             name="log-out-outline"
-            size={22}
+            size={isTablet ? 26 : 22}
             color="#FFF"
             style={{ marginRight: 10 }}
           />
@@ -234,7 +245,7 @@ const Profile = ({ navigation }) => {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalIconContainer}>
-                <Ionicons name="log-out-outline" size={32} color="#E53935" />
+                <Ionicons name="log-out-outline" size={isTablet ? 40 : 32} color="#E53935" />
               </View>
               <Text style={styles.modalTitle}>Ready to Go?</Text>
               <Text style={styles.modalSubText}>
@@ -278,6 +289,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 10,
+    marginTop: Platform.OS === 'android' || isTablet ? 10 : 0, // safe area adjustment
   },
   headerButton: {
     width: 40,
@@ -286,13 +298,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: responsiveFontSize(2.3),
+    // iPad: Reduce scale factor
+    fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.3),
     fontFamily: 'Poppins-SemiBold',
     color: '#1A1A1A',
   },
   scrollContent: {
-    paddingBottom: 40,
+    // Increased paddingBottom to ensure Logout button doesn't cover content
+    paddingBottom: 100,
     paddingHorizontal: 15,
+  },
+  mobileContainer: {
+    width: '100%',
+  },
+  tabletContainer: {
+    width: '60%',
+    alignSelf: 'center',
   },
   profileHeader: {
     alignItems: 'center',
@@ -300,20 +321,20 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: isTablet ? 150 : 120,
+    height: isTablet ? 150 : 120,
+    borderRadius: isTablet ? 75 : 60,
     borderWidth: 3,
     borderColor: primary,
   },
   profileName: {
-    fontSize: responsiveFontSize(2.4),
+    fontSize: isTablet ? responsiveFontSize(1.8) : responsiveFontSize(2.4),
     fontFamily: 'Poppins-Bold',
     color: '#1A1A1A',
     marginTop: 15,
   },
   profileEmail: {
-    fontSize: responsiveFontSize(1.7),
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.7),
     fontFamily: 'Poppins-Regular',
     color: '#666',
     marginBottom: 0,
@@ -335,8 +356,8 @@ const styles = StyleSheet.create({
     height: responsiveHeight(Platform.OS === 'ios' ? 5.8 : 5)
   },
   menuIconWrapper: {
-    width: 35,
-    height: 35,
+    width: isTablet ? 45 : 35,
+    height: isTablet ? 45 : 35,
     borderRadius: 20,
     backgroundColor: '#E0F2F1',
     justifyContent: 'center',
@@ -346,14 +367,14 @@ const styles = StyleSheet.create({
   menuItemText: {
     flex: 1,
     fontFamily: 'Poppins-SemiBold',
-    fontSize: responsiveFontSize(1.9),
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.9),
     color: '#1A1A1A',
   },
   separator: {
     height: 1,
     backgroundColor: '#F0F0F0',
     marginVertical: 5,
-    marginLeft: 55,
+    marginLeft: isTablet ? 65 : 55,
   },
   logoutButton: {
     backgroundColor: '#E53935',
@@ -370,13 +391,14 @@ const styles = StyleSheet.create({
     elevation: 10,
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 25 : 20,
-    width: '95%',
+    // Tablet: Restrict width so it doesn't span the whole huge screen
+    width: isTablet ? '50%' : '95%',
     alignSelf: 'center'
   },
   logoutButtonText: {
     color: '#FFFFFF',
     fontFamily: 'Poppins-SemiBold',
-    fontSize: responsiveFontSize(2),
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(2),
   },
   modalOverlay: {
     flex: 1,
@@ -387,7 +409,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#fff',
-    width: '100%',
+    width: isTablet ? '50%' : '100%', // Tablet modal width
     borderRadius: 24,
     padding: 25,
     alignItems: 'center',
@@ -408,13 +430,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: 'Poppins-Bold',
-    fontSize: responsiveFontSize(2.5),
+    fontSize: isTablet ? responsiveFontSize(1.6) : responsiveFontSize(2.5),
     color: '#1A1A1A',
     textAlign: 'center',
   },
   modalSubText: {
     fontFamily: 'Poppins-Regular',
-    fontSize: responsiveFontSize(1.8),
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.8),
     color: '#666',
     textAlign: 'center',
     marginTop: 8,
@@ -442,22 +464,22 @@ const styles = StyleSheet.create({
   },
   modalButtonText: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: responsiveFontSize(1.8),
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.8),
     color: '#fff',
   },
   footerContainer: {
     alignItems: 'center',
     marginTop: 40,
-    paddingBottom: 60,
+    paddingBottom: 20,
   },
   footerText: {
     fontFamily: 'Poppins-Regular',
-    fontSize: responsiveFontSize(1.6),
+    fontSize: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.6),
     color: '#888',
   },
   versionText: {
     fontFamily: 'Poppins-Regular',
-    fontSize: responsiveFontSize(1.5),
+    fontSize: isTablet ? responsiveFontSize(0.9) : responsiveFontSize(1.5),
     color: '#AAA',
     marginTop: 4,
   },

@@ -5,25 +5,25 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Platform, // Import Platform
+  Platform,
+  useWindowDimensions, // Import useWindowDimensions
 } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   responsiveFontSize,
-  responsiveHeight, // Import responsiveHeight
+  responsiveHeight,
 } from 'react-native-responsive-dimensions';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef } from 'react';
 import { background } from '../utils/colors';
 
-// A modern color palette for a fresh look
 const COLORS = {
-  background: '#F8F9FA', // Kept for consistency, but not used for the main safeArea
-  primary: '#28A745', // A vibrant, successful green
-  primaryMuted: '#E9F5E9', // A muted version of the primary for backgrounds
-  textPrimary: '#212529', // Dark gray for main text
-  textSecondary: '#6C757D', // Lighter gray for secondary text
+  background: '#F8F9FA',
+  primary: '#28A745',
+  primaryMuted: '#E9F5E9',
+  textPrimary: '#212529',
+  textSecondary: '#6C757D',
   white: '#FFFFFF',
   shadow: 'rgba(0, 0, 0, 0.08)',
 };
@@ -32,12 +32,15 @@ const Confirmation = ({ route }) => {
   const { selectedSlot: time, scheduleAt: date } = route.params;
   const navigation = useNavigation();
 
-  // Animations for a delightful entry
+  // --- 1. Tablet Detection ---
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+
+  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    // Hardware back button handler
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
@@ -46,7 +49,6 @@ const Confirmation = ({ route }) => {
       },
     );
 
-    // Entry animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -71,51 +73,56 @@ const Confirmation = ({ route }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Animated.View
-        style={[
-          styles.card,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}>
-        <LottieView
-          source={require('../assets/animations/success.json')}
-          autoPlay
-          loop={false}
-          style={styles.lottie}
-        />
+      <View style={styles.contentContainer}>
+        <Animated.View
+          style={[
+            styles.card,
+            // --- 2. Tablet Width Constraint ---
+            isTablet && styles.cardTablet,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}>
+          <LottieView
+            source={require('../assets/animations/success.json')}
+            autoPlay
+            loop={false}
+            // --- 3. Scale Animation for Tablet ---
+            style={[styles.lottie, isTablet && { width: 300, height: 300 }]}
+          />
 
-        <Text allowFontScaling style={styles.title}>
-          Booking Confirmed!
-        </Text>
-
-        <Text allowFontScaling style={styles.subtitle}>
-          Your time slot has been successfully reserved.
-        </Text>
-
-        {/* Highlighted Details Block */}
-        <View style={styles.detailsContainer}>
-          <Text allowFontScaling style={styles.detailsText}>
-            📅 &nbsp; {formattedDate}
+          <Text allowFontScaling style={[styles.title, isTablet && styles.textTabletLarge]}>
+            Booking Confirmed!
           </Text>
-          <Text allowFontScaling style={styles.detailsText}>
-            🕒 &nbsp; {time}
+
+          <Text allowFontScaling style={[styles.subtitle, isTablet && styles.textTabletMedium]}>
+            Your time slot has been successfully reserved.
           </Text>
-        </View>
 
-        <Text allowFontScaling style={styles.infoText}>
-          You can find the meeting link and manage your booking in your History.
-        </Text>
-      </Animated.View>
+          {/* Highlighted Details Block */}
+          <View style={styles.detailsContainer}>
+            <Text allowFontScaling style={[styles.detailsText, isTablet && styles.textTabletMedium]}>
+              📅 &nbsp; {formattedDate}
+            </Text>
+            <Text allowFontScaling style={[styles.detailsText, isTablet && styles.textTabletMedium]}>
+              🕒 &nbsp; {time}
+            </Text>
+          </View>
 
-      {/* Button is now absolutely positioned relative to the safe area */}
-      <View style={styles.buttonContainer}>
+          <Text allowFontScaling style={[styles.infoText, isTablet && styles.textTabletSmall]}>
+            You can find the meeting link and manage your booking in your History.
+          </Text>
+        </Animated.View>
+      </View>
+
+      {/* Button Container */}
+      <View style={[styles.buttonContainer, isTablet && styles.buttonContainerTablet]}>
         <TouchableOpacity
           onPress={() => navigation.navigate('History')}
           activeOpacity={0.8}
-          style={styles.button}>
-          <Text allowFontScaling style={styles.buttonText}>
+          style={[styles.button, isTablet && styles.buttonTablet]}>
+          <Text allowFontScaling style={[styles.buttonText, isTablet && styles.textTabletMedium]}>
             View Booking History
           </Text>
         </TouchableOpacity>
@@ -124,22 +131,33 @@ const Confirmation = ({ route }) => {
   );
 };
 
-// Merged and updated styles
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: background,
-    // justifyContent: 'center',
+  },
+  contentContainer: {
+    flex: 1,
+    justifyContent: 'center', // Vertically center the card
+    alignItems: 'center', // Horizontally center the card
   },
   card: {
-    marginHorizontal: 24,
+    width: '90%', // Default for phones
     padding: 24,
     borderRadius: 24,
     alignItems: 'center',
+    // Removed absolute marginHorizontal to allow flex centering
+    backgroundColor: COLORS.white, // Ensure card has background if container doesn't
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 1,
     shadowRadius: 20,
+    elevation: 5,
+  },
+  cardTablet: {
+    width: '60%', // Restrict width on tablets
+    maxWidth: 600,
+    padding: 40, // More breathing room
   },
   lottie: {
     width: 200,
@@ -152,6 +170,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginTop: 16,
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: responsiveFontSize(1.8),
@@ -184,16 +203,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
+
+  // --- Button Styles ---
   buttonContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 22 : 10, // Platform-specific positioning
-    left: 15,
-    right: 15,
+    bottom: Platform.OS === 'ios' ? 22 : 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center', // Center the button horizontally
+    paddingHorizontal: 15,
+  },
+  buttonContainerTablet: {
+    bottom: 40,
   },
   button: {
     backgroundColor: COLORS.primary,
-    height: responsiveHeight(7), // Using responsiveHeight
-    borderRadius: 18, // Using new borderRadius
+    height: responsiveHeight(7),
+    width: '100%', // Full width inside padding on phones
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: COLORS.primary,
@@ -202,10 +229,25 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  buttonTablet: {
+    width: '50%', // Half width on tablets
+    height: 60, // Fixed comfortable height
+  },
   buttonText: {
     color: COLORS.white,
     fontSize: responsiveFontSize(2),
     fontFamily: 'Poppins-SemiBold',
+  },
+
+  // --- Tablet Specific Typography Tweaks ---
+  textTabletLarge: {
+    fontSize: responsiveFontSize(1.8), // Relative scale is different on tablets
+  },
+  textTabletMedium: {
+    fontSize: responsiveFontSize(1.3),
+  },
+  textTabletSmall: {
+    fontSize: responsiveFontSize(1.1),
   },
 });
 

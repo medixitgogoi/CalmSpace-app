@@ -32,40 +32,80 @@ import { addUser } from '../redux/UserSlice';
 import { fetchBlogs } from '../utils/fetchBlogs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-// --- Feature Card Component (MODIFIED to accept onPress) ---
-const FeatureCard = memo(({ iconName, title, description, colors, onPress }) => (
+// --- TABLET DETECTION UTILITY ---
+// Hook must be used inside a component, so we move this check inside the component or use a static check if not dynamic
+// For static check outside component (simplified):
+const { width: INITIAL_WIDTH } = Dimensions.get('window');
+const isTabletStatic = INITIAL_WIDTH > 768;
+
+import { Dimensions } from 'react-native'; // Ensure Dimensions is imported
+
+// --- Feature Card Component ---
+// --- Feature Card Component ---
+const FeatureCard = memo(({ iconName, title, description, colors, onPress, isTablet }) => (
   <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
-    <LinearGradient colors={colors} style={styles.featureCard}>
-      <Ionicons name={iconName} size={responsiveFontSize(4)} color="#fff" />
+    <LinearGradient
+      colors={colors}
+      style={[
+        styles.featureCard,
+        isTablet && styles.featureCardTablet
+      ]}
+    >
+      <Ionicons
+        name={iconName}
+        // Adjust icon size: smaller scale for tablets
+        size={isTablet ? responsiveFontSize(2.5) : responsiveFontSize(4)}
+        color="#fff"
+      />
       <View>
-        <Text style={styles.featureTitle}>{title}</Text>
-        <Text style={styles.featureDescription}>{description}</Text>
+        <Text
+          style={[
+            styles.featureTitle,
+            isTablet && styles.featureTitleTablet // Apply tablet font size
+          ]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        <Text
+          style={[
+            styles.featureDescription,
+            isTablet && styles.featureDescriptionTablet // Apply tablet font size & line height
+          ]}
+          numberOfLines={2}
+        >
+          {description}
+        </Text>
       </View>
     </LinearGradient>
   </TouchableOpacity>
 ));
 
-// --- Service Features Section (MODIFIED to handle navigation) ---
-const ServiceFeatures = memo(({ navigation }) => {
+// --- Service Features Component ---
+const ServiceFeatures = memo(({ navigation, isTablet }) => {
   return (
     <View style={styles.serviceFeaturesContainer}>
       <View style={styles.serviceTitleContainer}>
         <View style={styles.titleDecoratorLine} />
         <View>
-          <Text style={styles.serviceFeaturesTitle}>Must Try Features</Text>
-          <Text style={styles.serviceFeaturesSubtitle}>Explore tools designed for your well-being.</Text>
+          <Text style={[styles.serviceFeaturesTitle, isTablet && { fontSize: responsiveFontSize(1.5) }]}>Must Try Features</Text>
+          <Text style={[styles.serviceFeaturesSubtitle, isTablet && { fontSize: responsiveFontSize(1.1) }]}>Explore tools designed for your well-being.</Text>
         </View>
       </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingLeft: Platform.OS === 'ios' ? 0 : 20, paddingRight: 10 }}>
+        contentContainerStyle={{
+          paddingLeft: 20,
+          paddingRight: 10
+        }}>
         <FeatureCard
           iconName="sparkles-outline"
           title="Luna AI Chat"
           description="Instant AI support"
           colors={['#6a11cb', '#4d8efd']}
           onPress={() => navigation.navigate('AiChat')}
+          isTablet={isTablet}
         />
         <FeatureCard
           iconName="videocam-outline"
@@ -73,6 +113,7 @@ const ServiceFeatures = memo(({ navigation }) => {
           description="1-on-1 with a counselor"
           colors={['#FFB75E', '#ED8F03']}
           onPress={() => navigation.navigate('Counselors')}
+          isTablet={isTablet}
         />
         <FeatureCard
           iconName="chatbubbles-outline"
@@ -80,6 +121,7 @@ const ServiceFeatures = memo(({ navigation }) => {
           description="3 chats of 20mins each"
           colors={['#4ac8c9', '#6ed2d3']}
           onPress={() => navigation.navigate('Boost')}
+          isTablet={isTablet}
         />
       </ScrollView>
     </View>
@@ -87,29 +129,32 @@ const ServiceFeatures = memo(({ navigation }) => {
 });
 
 // --- BlogCard Component ---
-const BlogCard = memo(({ item, navigation, getTimeAgo }) => {
+const BlogCard = memo(({ item, navigation, getTimeAgo, isTablet }) => {
   const handlePress = useCallback(() => {
     navigation.navigate('BlogDetails', { data: item });
   }, [navigation, item]);
 
   return (
-    <TouchableOpacity style={styles.blogCard} onPress={handlePress}>
+    <TouchableOpacity
+      style={[styles.blogCard, isTablet && styles.blogCardTablet]}
+      onPress={handlePress}
+    >
       <Image
         source={require('../assets/blog4.jpeg')}
-        style={styles.blogImage}
+        style={[styles.blogImage, isTablet && { height: responsiveHeight(15) }]}
       />
       <View style={styles.cardContent}>
         <View style={styles.metaContainer}>
-          <Text style={styles.categoryText}>{item?.category || 'General'}</Text>
+          <Text style={[styles.categoryText, isTablet && { fontSize: responsiveFontSize(1.1) }]}>{item?.category || 'General'}</Text>
           <Text style={styles.dotSeparator}>•</Text>
-          <Text style={styles.timeText}>{getTimeAgo(item?.createdAt)}</Text>
+          <Text style={[styles.timeText, isTablet && { fontSize: responsiveFontSize(1.1) }]}>{getTimeAgo(item?.createdAt)}</Text>
         </View>
-        <Text style={styles.blogTitle} numberOfLines={2}>
+        <Text style={[styles.blogTitle, isTablet && { fontSize: responsiveFontSize(1.5), lineHeight: undefined }]} numberOfLines={2}>
           {item.title}
         </Text>
         <View style={styles.authorContainer}>
           <Ionicons name="person-circle-outline" size={responsiveFontSize(2.5)} color="#555" />
-          <Text style={styles.authorText} numberOfLines={1}>{item?.author || 'Anonymous'}</Text>
+          <Text style={[styles.authorText, isTablet && { fontSize: responsiveFontSize(1.2) }]} numberOfLines={1}>{item?.author || 'Anonymous'}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -117,8 +162,8 @@ const BlogCard = memo(({ item, navigation, getTimeAgo }) => {
 });
 
 // --- Shimmer Placeholder Component ---
-const ShimmerCard = () => (
-  <View style={styles.shimmerCard}>
+const ShimmerCard = ({ isTablet }) => (
+  <View style={[styles.shimmerCard, isTablet && styles.blogCardTablet]}>
     <ShimmerPlaceHolder
       LinearGradient={LinearGradient}
       style={styles.shimmerImage}
@@ -137,21 +182,30 @@ const Home = ({ navigation }) => {
   const authToken = userDetails?.authToken;
   const isFocused = useIsFocused();
 
+  // --- HOOKS MUST BE INSIDE THE COMPONENT ---
+  const { width, height } = useWindowDimensions();
+  const isTablet = width > 768; // Dynamic check inside the component
+
   const [userName, setUserName] = useState(null);
   const [profileScore, setProfileScore] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
   const [blogs, setBlogs] = useState([]);
 
-  // --- DYNAMIC & SAFE ANIMATION SETUP ---
-  const { width } = useWindowDimensions();
+  // --- ANIMATION SETUP ---
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  const HEADER_ASPECT_RATIO = 2.1;
+  // Header Logic
+  const HEADER_ASPECT_RATIO = isTablet ? 3.5 : 2.1;
   const CONTENT_SAFE_HEIGHT = responsiveHeight(6) + responsiveHeight(1.5) + responsiveHeight(10);
   const idealAspectRatioHeight = width / HEADER_ASPECT_RATIO;
-  const HEADER_MAX_HEIGHT = Math.max(CONTENT_SAFE_HEIGHT, idealAspectRatioHeight);
-  const HEADER_MIN_HEIGHT = Math.max(HEADER_MAX_HEIGHT * 0.6, responsiveHeight(14));
+
+  const HEADER_MAX_HEIGHT = Math.min(
+    Math.max(CONTENT_SAFE_HEIGHT, idealAspectRatioHeight),
+    height * 0.35
+  );
+
+  const HEADER_MIN_HEIGHT = Math.max(HEADER_MAX_HEIGHT * (isTablet ? 0.5 : 0.6), responsiveHeight(12));
   const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
 
   const headerTranslateY = scrollY.interpolate({
@@ -236,8 +290,10 @@ const Home = ({ navigation }) => {
     return 'Just now';
   }, []);
 
+  // --- RENDER FUNCTIONS ---
+  // Important: DO NOT call useNavigation here. Use the 'navigation' prop passed to 'Home'.
   const renderListHeader = useCallback(() => (
-    <>
+    <View style={{ paddingBottom: 10 }}>
       {loading ? (
         <View style={{ marginHorizontal: 15, marginTop: 15 }}>
           <ShimmerPlaceHolder LinearGradient={LinearGradient} style={{ width: '100%', height: responsiveHeight(10), borderRadius: 15 }} />
@@ -247,27 +303,28 @@ const Home = ({ navigation }) => {
       ) : (
         <Quiz />
       )}
-      {/* MODIFIED to pass navigation prop */}
-      <ServiceFeatures navigation={navigation} />
+
+      {/* Pass navigation & isTablet prop explicitly */}
+      <ServiceFeatures navigation={navigation} isTablet={isTablet} />
 
       <Features />
 
       <View style={styles.headerContainer}>
         <View style={styles.headerDecorator} />
         <View>
-          <Text style={styles.headerTitle}>Discover</Text>
-          <Text style={styles.headerSubtitle}>Articles and stories for your well-being.</Text>
+          <Text style={[styles.headerTitle, isTablet && { fontSize: responsiveFontSize(1.5) }]}>Discover</Text>
+          <Text style={[styles.headerSubtitle, isTablet && { fontSize: responsiveFontSize(1) }]}>Articles and stories for your well-being.</Text>
         </View>
       </View>
-    </>
-  ), [loading, profileScore, navigation]); // MODIFIED to include navigation dependency
+    </View>
+  ), [loading, profileScore, navigation, isTablet]);
 
   const renderBlogItem = useCallback(
-    ({ item }) => <BlogCard item={item} navigation={navigation} getTimeAgo={getTimeAgo} />,
-    [navigation, getTimeAgo],
+    ({ item }) => <BlogCard item={item} navigation={navigation} getTimeAgo={getTimeAgo} isTablet={isTablet} />,
+    [navigation, getTimeAgo, isTablet],
   );
 
-  const renderShimmerItem = useCallback(() => <ShimmerCard />, []);
+  const renderShimmerItem = useCallback(() => <ShimmerCard isTablet={isTablet} />, [isTablet]);
 
   const keyExtractor = useCallback((item, index) => item._id ? item._id.toString() : index.toString(), []);
 
@@ -276,12 +333,16 @@ const Home = ({ navigation }) => {
       <StatusBar animated={true} barStyle={'dark-content'} hidden={false} backgroundColor={'#2D9596'} />
 
       <Animated.FlatList
+        key={isTablet ? 'h-grid' : 'h-list'}
+        numColumns={isTablet ? 2 : 1}
+        columnWrapperStyle={isTablet ? { paddingHorizontal: 10 } : null}
+
         contentContainerStyle={{
           paddingTop: HEADER_MAX_HEIGHT,
           paddingBottom: responsiveHeight(14)
         }}
         ListHeaderComponent={renderListHeader}
-        data={loading ? [1, 2, 3] : blogs}
+        data={loading ? [1, 2, 3, 4] : blogs}
         renderItem={loading ? renderShimmerItem : renderBlogItem}
         keyExtractor={keyExtractor}
         scrollEventThrottle={16}
@@ -308,14 +369,14 @@ const Home = ({ navigation }) => {
         <Animated.View style={[styles.topContentContainer, { opacity: topContentOpacity }]}>
           <View style={styles.greetingContainer}>
             <View>
-              <Text style={styles.greetingText}>Hi, {userName?.split(' ')?.[0] || 'User'}</Text>
-              <Text style={styles.welcomeText}>Welcome back!</Text>
+              <Text style={[styles.greetingText, isTablet && { fontSize: responsiveFontSize(1.5) }]}>Hi, {userName?.split(' ')?.[0] || 'User'}</Text>
+              <Text style={[styles.welcomeText, isTablet && { fontSize: responsiveFontSize(1.2) }]}>Welcome back!</Text>
             </View>
             <TouchableOpacity
               onPress={() => navigation.navigate('Profile')}
-              style={styles.profileButton}
+              style={[styles.profileButton, isTablet && { width: 45, height: 45 }]}
             >
-              <Text style={styles.profileInitial}>
+              <Text style={[styles.profileInitial, isTablet && { fontSize: responsiveFontSize(1.4) }]}>
                 {userName?.slice(0, 1) || 'U'}
               </Text>
             </TouchableOpacity>
@@ -323,13 +384,13 @@ const Home = ({ navigation }) => {
         </Animated.View>
 
         <TouchableOpacity
-          style={styles.searchBarContainer}
+          style={[styles.searchBarContainer, isTablet && { left: 30, right: 30 }]}
           onPress={() => navigation.navigate('Boost')}
           activeOpacity={0.8}
         >
-          <View style={styles.searchBar}>
+          <View style={[styles.searchBar, isTablet && { paddingVertical: 16 }]}>
             <Ionicons name="search" size={responsiveFontSize(2.5)} color="#888" />
-            <Text style={styles.searchBarText}>Find counselors to connect with</Text>
+            <Text style={[styles.searchBarText, isTablet && { fontSize: responsiveFontSize(1.3) }]}>Find counselors to connect with</Text>
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -337,9 +398,8 @@ const Home = ({ navigation }) => {
   );
 };
 
-
 const styles = StyleSheet.create({
-  // --- UPDATED STYLES FOR SERVICE FEATURES ---
+  // --- SERVICE FEATURES ---
   serviceFeaturesContainer: {
     marginTop: responsiveHeight(2),
     marginBottom: responsiveHeight(2.5),
@@ -367,29 +427,44 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(1.5),
     color: '#6c757d',
   },
+  // --- FEATURE CARD STYLES ---
   featureCard: {
-    width: responsiveWidth(Platform.OS == 'ios' ? 50 : 45),
-    aspectRatio: 1.6,
+    width: responsiveWidth(Platform.OS === 'ios' ? 52 : 42),
+    aspectRatio: 1.5,
     paddingHorizontal: responsiveWidth(4),
     borderRadius: 20,
-    marginRight: responsiveWidth(Platform.OS === 'ios' ? 0 : 4),
+    marginRight: Platform.OS === 'ios' ? 0 : 15,
     justifyContent: 'center',
     alignItems: 'flex-start',
     gap: responsiveHeight(1.5),
   },
+  featureCardTablet: {
+    width: responsiveWidth(32), // 28% width on tablet (fits ~3 on screen)
+    aspectRatio: 1.4,
+    paddingHorizontal: responsiveWidth(2),
+    gap: responsiveHeight(1),
+    borderRadius: 40,
+  },
   featureTitle: {
     color: '#fff',
     fontFamily: 'Poppins-Bold',
-    fontSize: responsiveFontSize(1.9),
+    fontSize: responsiveFontSize(1.9), // Phone Size
+  },
+  featureTitleTablet: {
+    fontSize: responsiveFontSize(1.3), // Tablet Size (Scaled down)
   },
   featureDescription: {
     color: 'rgba(255, 255, 255, 0.9)',
     fontFamily: 'Poppins-Regular',
-    fontSize: responsiveFontSize(1.4),
+    fontSize: responsiveFontSize(1.4), // Phone Size
     lineHeight: responsiveHeight(2),
   },
+  featureDescriptionTablet: {
+    fontSize: responsiveFontSize(1.0), // Tablet Size (Scaled down)
+    lineHeight: responsiveHeight(1.8),
+  },
 
-  // --- EXISTING STYLES ---
+  // --- GENERAL LAYOUT ---
   fill: {
     flex: 1,
     backgroundColor: background,
@@ -489,6 +564,8 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(1.5),
     color: '#6c757d',
   },
+
+  // --- BLOG CARD STYLES ---
   blogCard: {
     backgroundColor: '#fff',
     borderRadius: 20,
@@ -498,14 +575,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    marginHorizontal: 20
+    marginHorizontal: 20, // Default for Phone
+  },
+  blogCardTablet: {
+    flex: 1, // Distribute width evenly
+    marginHorizontal: 10, // Margin between columns
+    maxWidth: '48%', // Prevent single item from stretching full width
   },
   blogImage: {
     width: '100%',
     height: responsiveHeight(20),
     resizeMode: 'cover',
     borderRadius: 20,
-
   },
   cardContent: {
     padding: responsiveWidth(4),
@@ -550,6 +631,8 @@ const styles = StyleSheet.create({
     color: '#495057',
     marginLeft: 8,
   },
+
+  // --- SHIMMER ---
   shimmerCard: {
     backgroundColor: '#fff',
     borderRadius: 16,

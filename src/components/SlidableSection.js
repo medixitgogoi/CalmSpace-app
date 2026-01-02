@@ -1,504 +1,261 @@
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
+  StyleSheet,
   Dimensions,
   Animated,
-  StyleSheet,
+  ScrollView,
   Platform,
+  Easing,
 } from 'react-native';
-import { useState, useRef } from 'react';
-import { primary, lightPrimary } from '../utils/colors';
-import {
-  responsiveFontSize,
-  responsiveHeight,
-} from 'react-native-responsive-dimensions';
+import { responsiveFontSize, responsiveHeight, responsiveWidth } from 'react-native-responsive-dimensions';
 import LinearGradient from 'react-native-linear-gradient';
-import Icon4 from 'react-native-vector-icons/dist/AntDesign';
-import Toast from 'react-native-toast-message';
-import SelectDropdown from 'react-native-select-dropdown';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { primary, lightPrimary, secondary, background } from '../utils/colors';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
+import Toast from 'react-native-toast-message';
 
+// --- 1. Device Detection ---
 const { width: screenWidth } = Dimensions.get('window');
+const isTablet = screenWidth >= 768;
 
-const languages = [
-  { title: 'English' },
-  { title: 'Hindi' },
-  { title: 'Assamese' },
-  { title: 'Bengali' },
-  { title: 'Gujarati' },
-  { title: 'Kannada' },
-  { title: 'Kashmiri' },
-  { title: 'Malayalam' },
-  { title: 'Marathi' },
-  { title: 'Marwari' },
-  { title: 'Punjabi' },
-  { title: 'Tamil' },
-  { title: 'Telugu' },
-  { title: 'Urdu' },
+// --- Data ---
+const QUESTIONS = [
+  {
+    id: 1,
+    question: "What is your preferred budget per session?",
+    key: 'budget',
+    options: [
+      { id: 'b1', label: 'Budget-Friendly', subLabel: '₹500 - ₹1000', value: { min: 500, max: 1000 } },
+      { id: 'b2', label: 'Standard', subLabel: '₹1000 - ₹1500', value: { min: 1000, max: 1500 } },
+      { id: 'b3', label: 'Premium', subLabel: '₹1500 - ₹2000', value: { min: 1500, max: 2000 } },
+    ]
+  },
+  {
+    id: 2,
+    question: "How experienced should the counselor be?",
+    key: 'experience',
+    options: [
+      { id: 'e1', label: 'Junior', subLabel: '1+ Years Experience', value: 1 },
+      { id: 'e2', label: 'Intermediate', subLabel: '2-3 Years Experience', value: 2 },
+      { id: 'e3', label: 'Experienced', subLabel: '4+ Years Experience', value: 4 },
+      { id: 'e4', label: 'Expert', subLabel: '5+ Years Experience', value: 5 },
+    ]
+  },
+  {
+    id: 3,
+    question: "Which language do you prefer?",
+    key: 'language',
+    options: [
+      'English', 'Hindi', 'Bengali', 'Marathi',
+      'Telugu', 'Tamil', 'Gujarati', 'Urdu',
+      'Kannada', 'Odia', 'Malayalam', 'Punjabi'
+    ].map((lang, idx) => ({ id: `l${idx}`, label: lang, value: lang }))
+  }
 ];
 
-const experienceData = [
-  { title: '1+ years' },
-  { title: '2+ years' },
-  { title: '3+ years' },
-  { title: '4+ years' },
-  { title: '5+ years' },
-];
-
-const SlidableSection = ({ onFinish, setCounselorsLoading, counselors }) => {
+const SlidableSection = ({ onFinish, setCounselorsLoading }) => {
   const userDetails = useSelector(state => state.user);
-
   const authToken = userDetails?.authToken;
 
+  // --- State ---
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [answers, setAnswers] = useState({
+    budget: null,
+    experience: null,
+    language: null
+  });
+
+  // --- Animations ---
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  const [currentSlide, setCurrentSlide] = useState(0);
+  // --- Logic ---
+  const currentQuestion = QUESTIONS[currentStepIndex];
+  const selectedAnswer = answers[currentQuestion.key];
 
-  const [minBudget, setMinBudget] = useState(500);
-  const [maxBudget, setMaxBudget] = useState(1000);
-
-  const [language, setLanguage] = useState(null);
-  const [experience, setExperience] = useState(null);
-
-  const options = ['₹(500-1000)', '₹(1000-1500)', '₹(1500-2000)'];
-
-  const [isDropdownVisible, setDropdownVisible] = useState(false);
-  const [selectedBudget, setSelectedBudget] = useState(options[0]);
-
-  const handleOptionSelect = option => {
-    setSelectedBudget(option);
-    setDropdownVisible(false);
-
-    const match = option.match(/\((\d+)-(\d+)\)/);
-    if (match) {
-      const min = Number(match[1]);
-      const max = Number(match[2]);
-
-      setMinBudget(min);
-      setMaxBudget(max);
-    }
+  const handleSelect = (option) => {
+    setAnswers(prev => ({ ...prev, [currentQuestion.key]: option }));
   };
 
-  const budgetHandler = () => {
-    const min = Number(minBudget); // Convert to number
-    const max = Number(maxBudget); // Convert to number
-
-    if (isNaN(min) || isNaN(max)) {
-      Toast.show({
-        type: 'error',
-        text1: 'Invalid Budget',
-        text2: 'Please enter valid numbers',
-        position: 'top',
-        topOffset: 40,
-      });
-      return;
-    }
-
-    nextHandler();
-  };
-
-  const nextHandler = () => {
-    if (currentSlide < 2) {
-      // 4 slides in total
-      setCurrentSlide(prev => prev + 1);
-
+  const animateTransition = (direction, callback) => {
+    Animated.parallel([
       Animated.timing(slideAnim, {
-        toValue: -(currentSlide + 1) * screenWidth, // Move to the next slide dynamically
-        duration: 300,
+        toValue: direction * -50,
+        duration: 150,
         useNativeDriver: true,
-      }).start();
+        easing: Easing.ease
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      callback();
+      slideAnim.setValue(direction * 50);
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.ease)
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        })
+      ]).start();
+    });
+  };
+
+  const handleNext = () => {
+    if (currentStepIndex < QUESTIONS.length - 1) {
+      animateTransition(1, () => setCurrentStepIndex(prev => prev + 1));
+    } else {
+      submitPreferences();
     }
   };
 
-  const finishHandler = async () => {
-    setCounselorsLoading(true); // Start loading before fetching data
+  const handleBack = () => {
+    if (currentStepIndex > 0) {
+      animateTransition(-1, () => setCurrentStepIndex(prev => prev - 1));
+    }
+  };
 
-    const min = Number(minBudget);
-    const max = Number(maxBudget);
-
-    const numericExperience = parseInt(experience);
-
+  const submitPreferences = async () => {
+    setCounselorsLoading(true);
     try {
       const response = await axios.get('/counselor/preference', {
         params: {
-          language: language?.toLowerCase(),
-          minPrice: min,
-          maxPrice: max,
-          experience: numericExperience,
+          language: answers.language.value.toLowerCase(),
+          minPrice: answers.budget.value.min,
+          maxPrice: answers.budget.value.max,
+          experience: answers.experience.value,
         },
         headers: {
           'Content-Type': 'application/json',
           Authorization: authToken,
         },
       });
-
-      console.log('counselors preference: ', response);
-
-      const counselors = response?.data || [];
-      onFinish(counselors);
+      onFinish(response?.data || []);
     } catch (error) {
       console.log('Error: ', error.message);
+      Toast.show({ type: 'error', text1: 'Error finding counselors' });
+      onFinish([]);
     }
   };
 
   return (
-    <View style={{ paddingBottom: 10, marginTop: Platform.OS === 'ios' ? 10 : 0 }}>
-      {/* Heading */}
-      <Text
-        style={{
-          marginHorizontal: 10,
-          fontSize: responsiveFontSize(2),
-          fontFamily: 'Poppins-SemiBold',
-          marginBottom: 10,
-          textAlign: 'center',
-          color: '#444',
-        }}>
-        Find counselors based on your preference
-      </Text>
+    <View style={styles.container}>
+      <View style={[styles.card, isTablet && styles.cardTablet]}>
 
-      {/* Slides */}
-      <Animated.View
-        style={{
-          flexDirection: 'row',
-          width: screenWidth * 3,
-          transform: [{ translateX: slideAnim }],
-        }}>
-        {/* Slide 1 - Budget */}
-        <View
-          style={{
-            width: screenWidth,
-            paddingHorizontal: 10,
-            flexDirection: 'column',
-          }}>
-          <View
-            style={{ backgroundColor: '#ade6e6', padding: 20, borderRadius: 15 }}>
-            {/* Headline */}
-            <Text
-              style={{
-                fontSize: responsiveFontSize(1.9),
-                fontFamily: 'Poppins-Medium',
-                marginBottom: 5,
-              }}>
-              What's the Ideal Budget for your preferred counselor?
-            </Text>
+        {/* Progress Bar */}
+        <View style={styles.progressContainer}>
+          {QUESTIONS.map((_, idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.progressDot,
+                idx <= currentStepIndex && styles.progressDotActive,
+                idx === currentStepIndex && styles.progressDotCurrent
+              ]}
+            />
+          ))}
+        </View>
 
-            <View style={{ marginTop: 5 }}>
-              <TouchableOpacity
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#ccc',
-                  borderRadius: 12,
-                  padding: 12,
-                  backgroundColor: '#fff',
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-                onPress={() => setDropdownVisible(!isDropdownVisible)}>
-                <Text
-                  style={{
-                    fontFamily: 'Poppins-SemiBold',
-                    fontSize: responsiveFontSize(1.8),
-                  }}>
-                  {selectedBudget}
-                </Text>
-                <Icon4
-                  name={isDropdownVisible ? 'up' : 'down'}
-                  size={14}
-                  color="#333"
-                />
-              </TouchableOpacity>
+        {/* --- Animated Question Content --- */}
+        <Animated.View
+          style={[
+            styles.contentContainer,
+            { opacity: fadeAnim, transform: [{ translateX: slideAnim }] }
+          ]}
+        >
+          {/* Question Text */}
+          <Text style={styles.questionText}>
+            <Text style={{ color: primary, fontSize: isTablet ? responsiveFontSize(1.8) : responsiveFontSize(2.4) }}>{currentStepIndex + 1}. </Text>
+            {currentQuestion.question}
+          </Text>
 
-              {isDropdownVisible && (
-                <View
-                  style={{
-                    borderWidth: 1,
-                    borderColor: '#ccc',
-                    borderRadius: 12,
-                    marginTop: 8,
-                    backgroundColor: '#f9f4e7',
-                    elevation: 2,
-                    overflow: 'hidden',
-                  }}>
-                  {options.map((option, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      onPress={() => handleOptionSelect(option)}
-                      style={{
-                        padding: 12,
-                        borderBottomWidth:
-                          index !== options.length - 1 ? 0.8 : 0,
-                        borderBottomColor: '#aaa',
-                        backgroundColor:
-                          selectedBudget === option ? '#d4f7d4' : '#fff', // greenish background if selected
-                      }}>
-                      <Text
-                        style={{
-                          fontFamily: 'Poppins-Medium',
-                          fontSize: responsiveFontSize(1.8),
-                          color: '#000',
-                        }}>
-                        {option}
+          {/* Options List */}
+          <ScrollView
+            style={styles.optionsScroll}
+            // --- FIX: Changed to false to hide scrollbar on iOS/Android ---
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 10 }}
+            nestedScrollEnabled={true}
+            persistentScrollbar={false}
+          >
+            {currentQuestion.options.map((option) => {
+              const isSelected = selectedAnswer?.id === option.id;
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  activeOpacity={0.8}
+                  onPress={() => handleSelect(option)}
+                  style={[
+                    styles.optionRow,
+                    isSelected && styles.optionRowSelected
+                  ]}
+                >
+                  <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
+                    {isSelected && <View style={styles.radioInner} />}
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>
+                      {option.label}
+                    </Text>
+                    {option.subLabel && (
+                      <Text style={styles.optionSubLabel}>
+                        {option.subLabel}
                       </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-          </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </Animated.View>
 
-          {/* Next button */}
-          <LinearGradient
-            colors={
-              minBudget && maxBudget
-                ? [primary, lightPrimary]
-                : ['#ccc', '#aaa']
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{
-              marginTop: 20,
-              borderRadius: 12,
-              elevation: 2,
-              width: '97%',
-              alignSelf: 'center',
-            }}>
-            <TouchableOpacity
-              disabled={!minBudget || !maxBudget}
-              onPress={budgetHandler}
-              style={{
-                gap: 5,
-                paddingVertical: Platform.OS === 'ios' ? 12 : 10,
-                borderRadius: 14,
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                width: '100%',
-              }}>
-              <Text
-                style={{
-                  color: '#fff',
-                  fontSize: responsiveFontSize(2.2),
-                  fontFamily: 'Poppins-SemiBold',
-                  opacity: minBudget && maxBudget ? 1 : 0.9,
-                  paddingTop: 2,
-                }}>
-                Next
-              </Text>
-
-              <Icon4
-                name="arrowright"
-                size={23}
-                color={minBudget && maxBudget ? '#fff' : '#ddd'}
-              />
+        {/* --- Footer Buttons --- */}
+        <View style={styles.footer}>
+          {currentStepIndex > 0 ? (
+            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+              <Text style={styles.backButtonText}>Back</Text>
             </TouchableOpacity>
-          </LinearGradient>
+          ) : (
+            <View style={{ width: 50 }} />
+          )}
+
+          <TouchableOpacity
+            onPress={handleNext}
+            disabled={!selectedAnswer}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={!selectedAnswer ? ['#E0E0E0', '#E0E0E0'] : [primary, lightPrimary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.nextButton}
+            >
+              <Text style={[styles.nextButtonText, !selectedAnswer && { color: '#999' }]}>
+                {currentStepIndex === QUESTIONS.length - 1 ? 'Finish' : 'Next'}
+              </Text>
+              <Ionicons
+                name={currentStepIndex === QUESTIONS.length - 1 ? "checkmark" : "arrow-forward"}
+                size={isTablet ? 20 : 18}
+                color={!selectedAnswer ? '#999' : '#fff'}
+              />
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
 
-        {/* Slide 2 - Experience */}
-        <View
-          style={{
-            width: screenWidth,
-            paddingHorizontal: 10,
-            flexDirection: 'column',
-          }}>
-          <View
-            style={{ backgroundColor: '#ade6e6', padding: 20, borderRadius: 15 }}>
-            <Text
-              style={{
-                fontSize: responsiveFontSize(1.9),
-                fontFamily: 'Poppins-Medium',
-                marginBottom: 15,
-              }}>
-              How much experienced would you like your counselor to be?
-            </Text>
-
-            {/* Dropdown */}
-            <SelectDropdown
-              data={experienceData}
-              onSelect={(selectedItem, index) => {
-                setExperience(selectedItem.title);
-              }}
-              renderButton={(selectedItem, isOpened) => {
-                return (
-                  <View style={styles.dropdownButtonStyle}>
-                    <Text style={styles.dropdownButtonTxtStyle}>
-                      {(selectedItem && selectedItem.title) ||
-                        'Select experience'}
-                    </Text>
-                    <Icon4 size={17} name={isOpened ? 'up' : 'down'} />
-                  </View>
-                );
-              }}
-              renderItem={(item, index, isSelected) => {
-                return (
-                  <View
-                    style={{
-                      ...styles.dropdownItemStyle,
-                      ...(isSelected && {
-                        backgroundColor: '#d5f2f2',
-                        borderRadius: 12,
-                        paddingLeft: 20,
-                      }),
-                    }}>
-                    <Text style={styles.dropdownItemTxtStyle}>
-                      {item.title}
-                    </Text>
-                  </View>
-                );
-              }}
-              showsVerticalScrollIndicator={true}
-              dropdownStyle={styles.dropdownMenuStyle}
-            />
-          </View>
-
-          <LinearGradient
-            colors={experience ? [primary, lightPrimary] : ['#ccc', '#aaa']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{
-              marginTop: 20,
-              borderRadius: 12,
-              elevation: 2,
-              width: '97%',
-              alignSelf: 'center',
-            }}>
-            <TouchableOpacity
-              disabled={!experience}
-              onPress={nextHandler}
-              style={{
-                gap: 5,
-                paddingVertical: Platform.OS === 'ios' ? 12 : 10,
-                borderRadius: 12,
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                width: '100%',
-              }}>
-              <Text
-                style={{
-                  color: '#fff',
-                  fontSize: responsiveFontSize(2.2),
-                  fontFamily: 'Poppins-SemiBold',
-                  paddingtop: 2,
-                  opacity: experience ? 1 : 0.9,
-                }}>
-                Next
-              </Text>
-
-              <Icon4
-                name="arrowright"
-                size={23}
-                color={experience ? '#fff' : '#ddd'}
-              />
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>
-
-        {/* Slide 3 - Language */}
-        <View
-          style={{
-            width: screenWidth,
-            paddingHorizontal: 10,
-            flexDirection: 'column',
-          }}>
-          <View
-            style={{ backgroundColor: '#ade6e6', padding: 20, borderRadius: 15 }}>
-            <Text
-              style={{
-                fontSize: responsiveFontSize(1.9),
-                fontFamily: 'Poppins-Medium',
-                marginBottom: 15,
-              }}>
-              In which language would you like to communicate with your
-              counselor?
-            </Text>
-
-            {/* your code here */}
-            <SelectDropdown
-              data={languages}
-              onSelect={(selectedItem, index) => {
-                setLanguage(selectedItem.title);
-              }}
-              renderButton={(selectedItem, isOpened) => {
-                return (
-                  <View style={styles.dropdownButtonStyle}>
-                    <Text style={styles.dropdownButtonTxtStyle}>
-                      {(selectedItem && selectedItem.title) ||
-                        'Select language'}
-                    </Text>
-                    <Icon4 size={17} name={isOpened ? 'up' : 'down'} />
-                  </View>
-                );
-              }}
-              renderItem={(item, index, isSelected) => {
-                return (
-                  <View
-                    style={{
-                      ...styles.dropdownItemStyle,
-                      ...(isSelected && {
-                        backgroundColor: '#d5f2f2',
-                        borderRadius: 12,
-                        paddingLeft: 20,
-                      }),
-                    }}>
-                    <Text style={styles.dropdownItemTxtStyle}>
-                      {item.title}
-                    </Text>
-                  </View>
-                );
-              }}
-              showsVerticalScrollIndicator={true}
-              dropdownStyle={styles.dropdownMenuStyle}
-            />
-          </View>
-
-          {/* Finish button */}
-          <LinearGradient
-            colors={language ? [primary, lightPrimary] : ['#ccc', '#aaa']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{
-              marginTop: 20,
-              borderRadius: 12,
-              elevation: 2,
-              width: '97%',
-              alignSelf: 'center',
-            }}>
-            <TouchableOpacity
-              disabled={!language}
-              onPress={finishHandler}
-              style={{
-                gap: 5,
-                paddingVertical: Platform.OS === 'ios' ? 12 : 10,
-                borderRadius: 12,
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                width: '100%',
-              }}>
-              <Text
-                style={{
-                  color: '#fff',
-                  fontSize: responsiveFontSize(2.2),
-                  fontFamily: 'Poppins-SemiBold',
-                  opacity: language ? 1 : 0.9,
-                  paddingTop: 2,
-                }}>
-                Finish
-              </Text>
-
-              <Icon4
-                name="arrowright"
-                size={23}
-                color={language ? '#fff' : '#ddd'}
-              />
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>
-      </Animated.View>
+      </View>
     </View>
   );
 };
@@ -506,51 +263,153 @@ const SlidableSection = ({ onFinish, setCounselorsLoading, counselors }) => {
 export default SlidableSection;
 
 const styles = StyleSheet.create({
-  dropdownButtonStyle: {
-    width: '90%',
-    height: 45,
+  container: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    width: '100%',
+  },
+  card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 24,
+    width: '92%',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 5,
+    height: 450,
+  },
+  cardTablet: {
+    // width: '180%',
+    maxWidth: 600,
+    paddingHorizontal: 30,
+    paddingVertical: 30,
+    height: responsiveHeight(45), // Slightly taller on tablet
+  },
+
+  // Progress Dots
+  progressContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
+    marginBottom: 20,
+    gap: 8,
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E5E7EB',
+  },
+  progressDotActive: {
+    backgroundColor: primary,
+    opacity: 0.5,
+  },
+  progressDotCurrent: {
+    backgroundColor: primary,
+    opacity: 1,
+    width: 20,
+  },
+  contentContainer: {
+    flex: 1, // Take up remaining space in card
+  },
+  questionText: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: isTablet ? responsiveFontSize(1.4) : responsiveFontSize(2.1),
+    color: '#1F2937',
+    marginBottom: 15,
+    // lineHeight: isTablet ? 32 : 28,
+  },
+  optionsScroll: {
+    flex: 1,
+  },
+
+  // MCQ Option Row
+  optionRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#F3F4F6',
+    backgroundColor: '#fff',
+    marginBottom: 12,
+  },
+  optionRowSelected: {
+    borderColor: primary,
+    backgroundColor: '#F0FDFA',
+  },
+
+  // Radio Button Logic
+  radioCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    marginRight: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioCircleSelected: {
+    borderColor: primary,
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: primary,
+  },
+
+  // Text Styles
+  optionLabel: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.8),
+    color: '#374151',
+  },
+  optionLabelSelected: {
+    color: primary,
+  },
+  optionSubLabel: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.4),
+    color: '#6B7280',
+    marginTop: 2,
+  },
+
+  // Footer
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  backButton: {
+    paddingVertical: 10,
     paddingHorizontal: 15,
   },
-  dropdownButtonTxtStyle: {
-    flex: 1,
-    fontSize: responsiveFontSize(1.9),
+  backButtonText: {
     fontFamily: 'Poppins-Medium',
-    color: '#151E26',
+    color: '#6B7280',
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.7),
   },
-  dropdownButtonArrowStyle: {
-    fontSize: 28,
-  },
-  dropdownButtonIconStyle: {
-    fontSize: 28,
-    marginRight: 8,
-  },
-  dropdownMenuStyle: {
-    backgroundColor: '#fff',
-    borderRadius: 17,
-    padding: 15,
-  },
-  dropdownItemStyle: {
-    width: '100%',
+  nextButton: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 8,
-    marginTop: 5,
+    justifyContent: 'center',
+    width: responsiveWidth(22),
+    height: responsiveHeight(4),
+    borderRadius: 11,
+    gap: 3,
   },
-  dropdownItemTxtStyle: {
-    flex: 1,
-    fontSize: responsiveFontSize(1.9),
-    fontFamily: 'Poppins-Medium',
-    color: '#151E26',
-  },
-  dropdownItemIconStyle: {
-    fontSize: 28,
-    marginRight: 8,
+  nextButtonText: {
+    fontFamily: 'Poppins-SemiBold',
+    color: '#fff',
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.8),
   },
 });

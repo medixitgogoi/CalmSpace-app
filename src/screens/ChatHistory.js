@@ -8,6 +8,7 @@ import {
     FlatList,
     ActivityIndicator,
     Platform,
+    Dimensions,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -18,11 +19,14 @@ import { getChatHistory } from '../utils/getChatHistory';
 import moment from 'moment';
 import LottieView from 'lottie-react-native';
 
+// --- 1. Tablet Detection ---
+const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
+
 // Color theme
 const primary = '#2D9596';
 const secondary = '#F5EDD9';
 const background = '#F8F9FC';
-const lightPrimary = '#94dfdf';
 const cardBackground = '#fff';
 const textColor = '#333';
 const subtleText = '#6c757d';
@@ -65,32 +69,35 @@ const ChatHistory = ({ navigation }) => {
     }, [fetchHistory]);
 
     const renderHistoryItem = ({ item }) => (
-        <View style={styles.card}>
-            <View style={styles.cardHeader}>
-                <View style={styles.counselorInfo}>
-                    <View style={styles.avatar}>
-                        <Ionicons name="person" size={20} color={primary} />
+        // --- 2. Wrapper for Tablet Width Constraint ---
+        <View style={styles.cardWrapper}>
+            <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                    <View style={styles.counselorInfo}>
+                        <View style={styles.avatar}>
+                            <Ionicons name="person" size={isTablet ? 24 : 20} color={primary} />
+                        </View>
+                        <Text style={styles.counselorName}>{item.counselorName}</Text>
                     </View>
-                    <Text style={styles.counselorName}>{item.counselorName}</Text>
+                    <Text style={styles.sessionNumber}>Session #{item.sessionNumber}</Text>
                 </View>
-                <Text style={styles.sessionNumber}>Session #{item.sessionNumber}</Text>
-            </View>
 
-            <View style={styles.cardBody}>
-                <View style={styles.infoRow}>
-                    <MaterialCommunityIcons name="calendar-clock" size={20} color={'#333'} />
-                    <Text style={styles.infoText}>
-                        {moment(item.startedAt).format('MMMM Do YYYY, h:mm a')}
-                    </Text>
+                <View style={styles.cardBody}>
+                    <View style={styles.infoRow}>
+                        <MaterialCommunityIcons name="calendar-clock" size={isTablet ? 24 : 20} color={'#333'} />
+                        <Text style={styles.infoText}>
+                            {moment(item.startedAt).format('MMMM Do YYYY, h:mm a')}
+                        </Text>
+                    </View>
+                    <View style={{ ...styles.infoRow, marginTop: Platform.OS === 'ios' ? 12 : 8 }}>
+                        <MaterialCommunityIcons name="timelapse" size={isTablet ? 24 : 20} color={'#333'} />
+                        <Text style={styles.infoText}>{item.duration} minutes</Text>
+                    </View>
                 </View>
-                <View style={{ ...styles.infoRow, marginTop: Platform.OS === 'ios' ? 12 : 8 }}>
-                    <MaterialCommunityIcons name="timelapse" size={20} color={'#333'} />
-                    <Text style={styles.infoText}>{item.duration} minutes</Text>
-                </View>
-            </View>
 
-            <View style={styles.cardFooter}>
-                <Text style={styles.amount}>₹{item.amount}</Text>
+                <View style={styles.cardFooter}>
+                    <Text style={styles.amount}>₹{item.amount}</Text>
+                </View>
             </View>
         </View>
     );
@@ -117,7 +124,7 @@ const ChatHistory = ({ navigation }) => {
                     <TouchableOpacity
                         onPress={() => navigation.goBack()}
                         style={styles.headerButton}>
-                        <Ionicons name="arrow-back" size={20} color={textColor} />
+                        <Ionicons name="arrow-back" size={isTablet ? 28 : 20} color={textColor} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Chat History</Text>
                     <View style={styles.headerButton} />
@@ -140,7 +147,6 @@ const ChatHistory = ({ navigation }) => {
                                 style={styles.lottieEmpty}
                             />
                             <Text style={styles.emptyText}>No chat history found.</Text>
-                            {/* Changed the subtext to be more descriptive */}
                             <Text style={styles.emptySubText}>Your past chat sessions will appear here.</Text>
                         </View>
                     )}
@@ -165,6 +171,7 @@ const styles = StyleSheet.create({
         backgroundColor: background,
         borderBottomWidth: 1,
         borderBottomColor: '#EAECEE',
+        height: isTablet ? 70 : 60,
     },
     headerButton: {
         width: 40,
@@ -173,19 +180,27 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     headerTitle: {
-        fontSize: responsiveFontSize(2.3),
+        fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.3),
         fontFamily: 'Poppins-SemiBold',
         color: textColor,
     },
     listContainer: {
         flexGrow: 1,
-        padding: 16,
+        paddingTop: 16,
+        paddingBottom: 20,
+        // Remove side padding on tablets to let wrapper handle centering
+        paddingHorizontal: isTablet ? 0 : 16,
+    },
+    // --- 3. Wrapper Style ---
+    cardWrapper: {
+        width: isTablet ? '75%' : '100%',
+        alignSelf: 'center',
+        marginBottom: 15,
     },
     card: {
         backgroundColor: cardBackground,
         borderRadius: 22,
-        padding: 16,
-        marginBottom: 15,
+        padding: isTablet ? 20 : 16,
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
@@ -205,21 +220,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     avatar: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: isTablet ? 45 : 36,
+        height: isTablet ? 45 : 36,
+        borderRadius: isTablet ? 22.5 : 18,
         backgroundColor: secondary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
     },
     counselorName: {
-        fontSize: responsiveFontSize(2),
+        fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(2),
         fontFamily: 'Poppins-SemiBold',
         color: textColor,
     },
     sessionNumber: {
-        fontSize: responsiveFontSize(1.6),
+        fontSize: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.6),
         fontFamily: 'Poppins-Medium',
         color: primary,
         backgroundColor: '#c2eded',
@@ -236,7 +251,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     infoText: {
-        fontSize: responsiveFontSize(1.7),
+        fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.7),
         fontFamily: 'Poppins-Regular',
         color: subtleText,
         marginLeft: 10,
@@ -248,7 +263,7 @@ const styles = StyleSheet.create({
         borderTopColor: '#F0F3F4',
     },
     amount: {
-        fontSize: responsiveFontSize(2.2),
+        fontSize: isTablet ? responsiveFontSize(1.4) : responsiveFontSize(2.2),
         fontFamily: 'Poppins-Bold',
         color: primary,
     },
@@ -269,21 +284,22 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        marginTop: isTablet ? 40 : 0,
     },
     lottieEmpty: {
-        width: 250,
-        height: 250,
+        width: isTablet ? 350 : 250,
+        height: isTablet ? 350 : 250,
         marginBottom: 10,
     },
     emptyText: {
         fontFamily: 'Poppins-Medium',
-        fontSize: responsiveFontSize(2.2),
+        fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.2),
         color: '#4F4F4F',
         textAlign: 'center',
     },
     emptySubText: {
         fontFamily: 'Poppins-Regular',
-        fontSize: responsiveFontSize(1.8),
+        fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.8),
         color: '#828282',
         textAlign: 'center',
         marginTop: 8,

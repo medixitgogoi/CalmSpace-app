@@ -21,12 +21,18 @@ import { primary } from '../utils/colors';
 import { fetchFeatures } from '../utils/fetchFeatures';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.75;
+
+// Detect if device is likely a tablet (width >= 768px is the standard breakpoint)
+const isTablet = width >= 768;
+
+// Adjust Card Width:
+// Mobile: 75% of screen width
+// Tablet: 50% of screen width (User requested smaller cards for iPad relative to screen)
+const CARD_WIDTH = isTablet ? width * 0.5 : width * 0.75;
 const SPACING = 10;
 const CAROUSEL_ITEM_FULL_WIDTH = CARD_WIDTH + SPACING;
 
 const FeatureCardSkeleton = () => {
-  // This component remains the same as the previous version
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -36,13 +42,13 @@ const FeatureCardSkeleton = () => {
           toValue: 1,
           duration: 800,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
+          useNativeDriver: true, // Changed to true for opacity
         }),
         Animated.timing(pulseAnim, {
           toValue: 0,
           duration: 800,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
+          useNativeDriver: true, // Changed to true for opacity
         }),
       ]),
     ).start();
@@ -61,7 +67,6 @@ const FeatureCardSkeleton = () => {
     </Animated.View>
   );
 };
-
 
 const Features = () => {
   const userDetails = useSelector(state => state.user);
@@ -106,18 +111,19 @@ const Features = () => {
     });
 
     return (
-      <Animated.View style={[styles.cardWrapper, { transform: [{ scale }], opacity }]}>
+      <Animated.View
+        style={[styles.cardWrapper, { transform: [{ scale }], opacity }]}
+      >
         <LinearGradient
           colors={['#e1f6f6', '#a4e3e4']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.cardGradient}
         >
-          {/* --- FIX: Wrap Image in a View for stable responsive sizing --- */}
           <View style={styles.imageContainer}>
             <Image
               source={require('../assets/features.png')}
-              style={styles.cardImage} // This style is now simplified
+              style={styles.cardImage}
             />
           </View>
           <Text style={styles.cardTitle}>{item.title}</Text>
@@ -133,7 +139,9 @@ const Features = () => {
         <View style={styles.headerDecorator} />
         <View>
           <Text style={styles.headerTitle}>Upcoming Features</Text>
-          <Text style={styles.headerSubtitle}>Exciting new updates coming soon!</Text>
+          <Text style={styles.headerSubtitle}>
+            Exciting new updates coming soon!
+          </Text>
         </View>
       </View>
 
@@ -187,18 +195,21 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   headerTitle: {
-    fontSize: responsiveFontSize(2.1),
+    // iPad: Reduce font scale factor to prevent title from being huge
+    fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.1),
     fontFamily: 'Poppins-Bold',
     color: '#333',
   },
   headerSubtitle: {
-    fontSize: responsiveFontSize(1.5),
+    // iPad: Reduce font scale factor
+    fontSize: isTablet ? responsiveFontSize(1) : responsiveFontSize(1.5),
     fontFamily: 'Poppins-Regular',
     color: '#666',
     marginTop: 2,
   },
   carouselContainer: {},
   carouselContentContainer: {
+    // Centers the carousel items
     paddingHorizontal: (width - CARD_WIDTH) / 2 - SPACING / 2,
   },
   cardWrapper: {
@@ -206,16 +217,17 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING / 2,
   },
   cardGradient: {
-    borderRadius: 20,
+    borderRadius: isTablet ? 40 : 20,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    paddingVertical: Platform.OS === 'android' ? 20 : 5,
+    // Increase padding for iPad slightly for better breathing room
+    paddingVertical: isTablet ? 10 : (Platform.OS === 'android' ? 20 : 5),
     paddingHorizontal: 10,
   },
   imageContainer: {
     width: '55%',
-    aspectRatio: 1.2,
+    aspectRatio: isTablet ? 1 : 1.3,
   },
   cardImage: {
     width: '100%',
@@ -223,20 +235,22 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   cardTitle: {
-    fontSize: responsiveFontSize(1.9),
+    // iPad: Reduce font scale factor
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.9),
     fontFamily: 'Poppins-SemiBold',
     color: '#333',
     textAlign: 'center',
     paddingHorizontal: 5,
   },
   cardSubtitle: {
-    fontSize: responsiveFontSize(1.5),
+    // iPad: Reduce font scale factor
+    fontSize: isTablet ? responsiveFontSize(0.8) : responsiveFontSize(1.5),
     fontFamily: 'Poppins-Medium',
     color: '#666',
     textAlign: 'center',
     marginTop: 3,
     paddingHorizontal: 5,
-    marginBottom: Platform.OS === 'ios' ? 25 : 0
+    marginBottom: Platform.OS === 'ios' ? isTablet ? 35 : 25 : 0,
   },
   skeletonCard: {
     width: CARD_WIDTH,
@@ -255,14 +269,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   skeletonTextLarge: {
-    height: responsiveFontSize(2),
+    height: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2),
     width: '70%',
     backgroundColor: '#cccccc',
     borderRadius: 4,
     marginBottom: 10,
   },
   skeletonTextSmall: {
-    height: responsiveFontSize(1.5),
+    height: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.5),
     width: '50%',
     backgroundColor: '#cccccc',
     borderRadius: 4,

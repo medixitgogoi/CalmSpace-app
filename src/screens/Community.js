@@ -17,7 +17,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { responsiveFontSize, responsiveHeight } from 'react-native-responsive-dimensions';
+import { responsiveFontSize, responsiveHeight, responsiveWidth } from 'react-native-responsive-dimensions';
 import moment from 'moment';
 import LinearGradient from 'react-native-linear-gradient';
 import Modal from 'react-native-modal';
@@ -27,6 +27,10 @@ import { useSelector } from 'react-redux';
 import { fetchPosts } from '../utils/fetchPosts';
 import { useFocusEffect } from '@react-navigation/native';
 import { fetchReplies } from '../utils/fetchReplies';
+
+// --- 1. Tablet Detection ---
+const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
 
 const Community = ({ navigation }) => {
   const userDetails = useSelector(state => state.user);
@@ -114,42 +118,44 @@ const Community = ({ navigation }) => {
     }, [showReplies, replies.length, loadingReplies, post?._id, fetchReplies, authToken]);
 
     return (
-      <View style={styles.postCard}>
-        <View style={styles.postHeader}>
-          <Image source={{ uri: post?.userId?.pic }} style={styles.profilePic} />
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{post?.userId?.name || 'User'}</Text>
-            <Text style={styles.timestamp}>{formattedTimestamp}</Text>
+      <View style={styles.postCardWrapper}>
+        <View style={styles.postCard}>
+          <View style={styles.postHeader}>
+            <Image source={{ uri: post?.userId?.pic }} style={styles.profilePic} />
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{post?.userId?.name || 'User'}</Text>
+              <Text style={styles.timestamp}>{formattedTimestamp}</Text>
+            </View>
           </View>
-        </View>
-        <Text style={styles.postContent}>{post?.text}</Text>
-        <View style={styles.postActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, isUpdatingLike && { opacity: 0.5 }]}
-            onPress={handleLike}
-            disabled={isUpdatingLike}
-          >
-            <Ionicons name={isLiked ? "heart" : "heart-outline"} size={20} color={isLiked ? '#E91E63' : primary} />
-            <Text style={[styles.actionText, { color: isLiked ? '#E91E63' : primary }]}>{likeCount}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleViewReplies} style={styles.actionButton}>
-            <Ionicons name={showReplies ? "eye-off-outline" : "eye-outline"} size={20} color={primary} />
-            <Text style={[styles.actionText, { color: primary }]}>
-              {showReplies ? `Hide replies` : `View replies`}
-            </Text>
-          </TouchableOpacity>
-        </View>
-        {showReplies && (
-          <View style={styles.repliesSection}>
-            {loadingReplies ? (
-              <Text style={styles.loadingText}>Loading replies...</Text>
-            ) : replies.length > 0 ? (
-              replies.map((reply) => <ReplyCard key={reply._id} reply={reply} />)
-            ) : (
-              <Text style={styles.noRepliesText}>No replies yet.</Text>
-            )}
+          <Text style={styles.postContent}>{post?.text}</Text>
+          <View style={styles.postActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, isUpdatingLike && { opacity: 0.5 }]}
+              onPress={handleLike}
+              disabled={isUpdatingLike}
+            >
+              <Ionicons name={isLiked ? "heart" : "heart-outline"} size={isTablet ? 24 : 20} color={isLiked ? '#E91E63' : primary} />
+              <Text style={[styles.actionText, { color: isLiked ? '#E91E63' : primary }]}>{likeCount}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleViewReplies} style={styles.actionButton}>
+              <Ionicons name={showReplies ? "eye-off-outline" : "eye-outline"} size={isTablet ? 24 : 20} color={primary} />
+              <Text style={[styles.actionText, { color: primary }]}>
+                {showReplies ? `Hide replies` : `View replies`}
+              </Text>
+            </TouchableOpacity>
           </View>
-        )}
+          {showReplies && (
+            <View style={styles.repliesSection}>
+              {loadingReplies ? (
+                <Text style={styles.loadingText}>Loading replies...</Text>
+              ) : replies.length > 0 ? (
+                replies.map((reply) => <ReplyCard key={reply._id} reply={reply} />)
+              ) : (
+                <Text style={styles.noRepliesText}>No replies yet.</Text>
+              )}
+            </View>
+          )}
+        </View>
       </View>
     );
   });
@@ -230,10 +236,9 @@ const Community = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      // Always set loading to true on focus to prevent showing stale data.
       setLoading(true);
       fetchData();
-    }, [fetchData]) // Dependency on fetchData is correct.
+    }, [fetchData])
   );
 
   const handleRefresh = useCallback(() => {
@@ -256,10 +261,26 @@ const Community = ({ navigation }) => {
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.headerButton}>
-            <Ionicons name="arrow-back" size={20} color={'#333'} />
+            <Ionicons name="arrow-back" size={isTablet ? 28 : 20} color={'#333'} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>The Calmspace Community</Text>
-          <View style={styles.headerButtonPlaceholder} />
+
+          {/* --- FIX: Tablet Header Button --- */}
+          {isTablet ? (
+            <TouchableOpacity onPress={toggleWritePostModal} activeOpacity={0.8}>
+              <LinearGradient
+                colors={['#0fb8ad', '#1fc8db']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.headerAddButtonTablet}
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.headerAddButtonText}>New Post</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerButtonPlaceholder} />
+          )}
         </View>
 
         {loading && !isRefreshing ? (
@@ -294,12 +315,12 @@ const Community = ({ navigation }) => {
               }}>
                 <Feather
                   name="message-square"
-                  size={50}
+                  size={isTablet ? 80 : 50}
                   color="#d3d3d3"
                 />
                 <Text style={{
                   fontFamily: 'Poppins-SemiBold',
-                  fontSize: 18,
+                  fontSize: isTablet ? responsiveFontSize(1.5) : 18,
                   color: '#555',
                   marginTop: 20
                 }}>
@@ -307,7 +328,7 @@ const Community = ({ navigation }) => {
                 </Text>
                 <Text style={{
                   fontFamily: 'Poppins-Regular',
-                  fontSize: 14,
+                  fontSize: isTablet ? responsiveFontSize(1.2) : 14,
                   color: '#888',
                   marginTop: 8,
                   textAlign: 'center',
@@ -320,17 +341,20 @@ const Community = ({ navigation }) => {
           />
         )}
 
-        <TouchableOpacity
-          style={styles.addPostButton}
-          onPress={toggleWritePostModal}>
-          <LinearGradient
-            colors={['#0fb8ad', '#1fc8db']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.addPostButtonGradient}>
-            <Ionicons name="add" size={30} color="#fff" />
-          </LinearGradient>
-        </TouchableOpacity>
+        {/* --- FIX: Hide Floating Button on Tablet --- */}
+        {!isTablet && (
+          <TouchableOpacity
+            style={styles.addPostButton}
+            onPress={toggleWritePostModal}>
+            <LinearGradient
+              colors={['#0fb8ad', '#1fc8db']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.addPostButtonGradient}>
+              <Ionicons name="add" size={30} color="#fff" />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
         <Modal
           isVisible={isWritePostModalVisible}
@@ -399,6 +423,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 0.5,
     borderBottomColor: lightPrimary,
+    height: isTablet ? 80 : 60,
   },
   headerButton: {
     width: 35,
@@ -410,20 +435,43 @@ const styles = StyleSheet.create({
     width: 35,
     height: 35,
   },
+  // --- New Tablet Header Button Styles ---
+  headerAddButtonTablet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // paddingVertical: 8,
+    // paddingHorizontal: 16,
+    height: responsiveHeight(4),
+    width: responsiveWidth(18),
+    borderRadius: 20,
+    marginRight: 10, // Some spacing from the right edge
+  },
+  headerAddButtonText: {
+    color: '#fff',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: responsiveFontSize(1.2),
+    marginLeft: 5,
+  },
   headerTitle: {
-    fontSize: responsiveFontSize(2.3),
+    fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.3),
     fontFamily: 'Poppins-Bold',
     color: '#000',
     paddingTop: 2,
   },
   postListContainer: {
-    paddingHorizontal: 15,
+    paddingHorizontal: isTablet ? 0 : 15,
     paddingBottom: responsiveHeight(12),
+    paddingTop: isTablet ? 10 : 0,
+  },
+  postCardWrapper: {
+    width: isTablet ? '70%' : '100%',
+    alignSelf: 'center',
   },
   postCard: {
     backgroundColor: '#f6fcfc',
     borderRadius: 18,
-    padding: 15,
+    padding: isTablet ? 20 : 15,
     marginBottom: 15,
     elevation: 3,
     shadowColor: '#000',
@@ -438,9 +486,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   profilePic: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
+    width: isTablet ? 55 : 45,
+    height: isTablet ? 55 : 45,
+    borderRadius: isTablet ? 27.5 : 22.5,
     marginRight: 10,
     borderWidth: 1.5,
     borderColor: primary,
@@ -449,20 +497,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
-    fontSize: responsiveFontSize(1.9),
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.9),
     fontFamily: 'Poppins-SemiBold',
     color: '#333',
   },
   timestamp: {
-    fontSize: responsiveFontSize(1.5),
+    fontSize: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.5),
     fontFamily: 'Poppins-Regular',
     color: '#888',
   },
   postContent: {
-    fontSize: responsiveFontSize(1.8),
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.8),
     fontFamily: 'Poppins-Regular',
     color: '#444',
-    lineHeight: responsiveHeight(2.5),
+    lineHeight: isTablet ? responsiveHeight(3) : responsiveHeight(2.5),
     marginBottom: 15,
   },
   postActions: {
@@ -483,15 +531,15 @@ const styles = StyleSheet.create({
     width: '50%'
   },
   actionText: {
-    fontSize: responsiveFontSize(1.6),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.6),
     fontFamily: 'Poppins-Medium',
     marginLeft: 5,
   },
   addPostButton: {
     position: 'absolute',
-    bottom: responsiveHeight(Platform.OS === 'ios' ? 11 : 13),
-    right: 15,
-    borderRadius: 30,
+    bottom: responsiveHeight(11),
+    right: Platform.OS === 'ios' ? 20 : 25,
+    borderRadius: 100,
     width: 60,
     height: 60,
     overflow: 'hidden',
@@ -508,15 +556,15 @@ const styles = StyleSheet.create({
   },
   modalView: {
     margin: 0,
-    justifyContent: Platform.OS === 'ios' ? 'flex-start' : 'center',
-    paddingTop: Platform.OS === 'ios' ? 110 : 0,
+    justifyContent: isTablet ? 'center' : (Platform.OS === 'ios' ? 'flex-start' : 'center'),
+    paddingTop: isTablet ? 0 : (Platform.OS === 'ios' ? 110 : 0),
     alignItems: 'center',
   },
   modalContent: {
     backgroundColor: background,
-    borderRadius: 22,
-    padding: 20,
-    width: '90%',
+    borderRadius: isTablet ? 40 : 22,
+    padding: 30,
+    width: isTablet ? '80%' : '90%',
     alignItems: 'center',
     elevation: 5,
     shadowColor: '#000',
@@ -525,14 +573,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   modalTitle: {
-    fontSize: responsiveFontSize(2.5),
+    fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.5),
     fontFamily: 'Poppins-SemiBold',
     color: primary,
     marginBottom: 10,
     textAlign: 'center',
   },
   modalMessage: {
-    fontSize: responsiveFontSize(1.8),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.8),
     fontFamily: 'Poppins-Regular',
     color: '#555',
     textAlign: 'center',
@@ -555,7 +603,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#555',
-    fontSize: responsiveFontSize(1.8),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.8),
     fontFamily: 'Poppins-Medium',
   },
   writePostButton: {
@@ -563,18 +611,18 @@ const styles = StyleSheet.create({
   },
   writePostButtonText: {
     color: '#fff',
-    fontSize: responsiveFontSize(1.8),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.8),
     fontFamily: 'Poppins-SemiBold',
   },
   textInput: {
     borderWidth: 1,
     borderColor: '#ccc',
-    borderRadius: 10,
-    padding: 15,
+    borderRadius: 20,
+    padding: isTablet ? 20 : 15,
     width: '100%',
-    minHeight: responsiveHeight(15),
+    minHeight: isTablet ? responsiveHeight(30) : responsiveHeight(15),
     textAlignVertical: 'top',
-    fontSize: responsiveFontSize(1.8),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.8),
     fontFamily: 'Poppins-Regular',
     color: '#333',
     marginBottom: 20,
@@ -589,11 +637,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#888',
     fontStyle: 'italic',
+    fontSize: isTablet ? responsiveFontSize(1.0) : 14,
   },
   noRepliesText: {
     textAlign: 'center',
     color: '#888',
     fontStyle: 'italic',
+    fontSize: isTablet ? responsiveFontSize(1.0) : 14,
   },
   replyCard: {
     flexDirection: 'row',
@@ -606,9 +656,9 @@ const styles = StyleSheet.create({
     borderColor: secondary,
   },
   replyProfilePic: {
-    width: 35,
-    height: 35,
-    borderRadius: 17.5,
+    width: isTablet ? 40 : 35,
+    height: isTablet ? 40 : 35,
+    borderRadius: isTablet ? 20 : 17.5,
     marginRight: 10,
     backgroundColor: '#e0e0e0',
   },
@@ -618,11 +668,11 @@ const styles = StyleSheet.create({
   },
   replyUserName: {
     fontFamily: 'Poppins-Medium',
-    fontSize: 13,
+    fontSize: isTablet ? responsiveFontSize(1.0) : 13,
     color: '#444',
   },
   replyText: {
-    fontSize: 12,
+    fontSize: isTablet ? responsiveFontSize(0.9) : 12,
     color: '#666',
     fontFamily: 'Poppins-Regular',
   },

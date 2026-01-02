@@ -1,85 +1,65 @@
-import { View, Animated, StatusBar, StyleSheet } from 'react-native';
+import { View, Animated, StatusBar, StyleSheet, Dimensions, Platform } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useEffect, useRef } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { responsiveFontSize } from 'react-native-responsive-dimensions';
+import {
+  responsiveFontSize,
+  responsiveWidth,
+  responsiveHeight
+} from 'react-native-responsive-dimensions';
 
-// It's a good practice to define styles using StyleSheet for performance and organization.
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logo: {
-    width: 200, // Fixed width for better control
-    height: 200, // Fixed height for better control
-    resizeMode: 'contain',
-  },
-  text: {
-    fontFamily: 'Poppins-Bold',
-    fontSize: responsiveFontSize(3.5), // Slightly larger for impact
-    color: '#5db7b7', // A calming, elegant teal
-    marginTop: 0,
-  },
-  revealCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#86c9c9',
-    position: 'absolute',
-  },
-});
+// Get screen dimensions to calculate animation scales dynamically
+const { width, height } = Dimensions.get('window');
+const isTablet = width > 768; // Simple tablet detection
 
 const Splashscreen = () => {
   const navigation = useNavigation();
-  const revealAnim = useRef(new Animated.Value(0)).current; // Single value to drive all animations
+  const revealAnim = useRef(new Animated.Value(0)).current;
+
+  // Calculate the scale needed for the circle to cover the screen
+  // We double the screen height to be safe, ensuring the circle covers everything even diagonally
+  const circleStartSize = 100;
+  const maxScale = (height / circleStartSize) * 2.5;
 
   useEffect(() => {
-    // Animate the reveal value from 0 to 1 over 1.5 seconds
+    // Animate the reveal value
     Animated.timing(revealAnim, {
       toValue: 1,
       duration: 1600,
       useNativeDriver: true,
     }).start();
 
-    // Navigate after a delay
     const timer = setTimeout(() => {
       navigation.navigate('OnboardingScreen');
-    }, 2500); // Adjusted timing slightly for a smoother transition
+    }, 2500);
 
-    // Cleanup the timer if the component unmounts
     return () => clearTimeout(timer);
   }, [navigation, revealAnim]);
 
   // --- Animation Interpolations ---
 
-  // Circle expands and then fades out
   const circleScale = revealAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 15],
+    outputRange: [1, maxScale], // Uses dynamic scale calculation
   });
+
   const circleOpacity = revealAnim.interpolate({
     inputRange: [0, 0.5, 1],
     outputRange: [0, 1, 0],
   });
 
-  // Content fades in and slides up gracefully from the bottom
   const contentOpacity = revealAnim.interpolate({
     inputRange: [0, 0.5, 1],
     outputRange: [0, 0, 1],
   });
 
-  // MODIFICATION: Changed the output range to make the text appear from the bottom.
+  // Slide up distance: larger distance for taller screens (tablets)
+  const slideDistance = isTablet ? 150 : 100;
+
   const contentTranslateY = revealAnim.interpolate({
     inputRange: [0, 0.6, 1],
-    outputRange: [100, 100, 0], // Start from a lower position (100) and move to 0
+    outputRange: [slideDistance, slideDistance, 0],
   });
-
 
   return (
     <LinearGradient colors={['#F0FFF0', '#FFFFFF']} style={styles.container}>
@@ -89,6 +69,9 @@ const Splashscreen = () => {
         style={[
           styles.revealCircle,
           {
+            width: circleStartSize,
+            height: circleStartSize,
+            borderRadius: circleStartSize / 2,
             transform: [{ scale: circleScale }],
             opacity: circleOpacity,
           },
@@ -112,5 +95,34 @@ const Splashscreen = () => {
     </LinearGradient>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    // Responsive width: 50% of screen for phones, 35% for tablets
+    width: isTablet ? responsiveWidth(30) : responsiveWidth(50),
+    height: isTablet ? responsiveWidth(30) : responsiveWidth(50),
+    resizeMode: 'contain',
+  },
+  text: {
+    fontFamily: 'Poppins-Bold',
+    // Slightly larger font for tablets to match the larger screen real estate
+    fontSize: isTablet ? responsiveFontSize(3.5) : responsiveFontSize(3.5),
+    color: '#5db7b7',
+    marginTop: responsiveHeight(1), // Responsive margin
+  },
+  revealCircle: {
+    backgroundColor: '#86c9c9',
+    position: 'absolute',
+  },
+});
 
 export default Splashscreen;

@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { getHistory } from '../utils/getHistory';
@@ -21,7 +22,10 @@ import { background, primary } from '../utils/colors';
 import Clipboard from '@react-native-clipboard/clipboard';
 import LottieView from 'lottie-react-native';
 
-// Helper function to get initials from a name
+// --- 1. Tablet Detection ---
+const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
+
 const getInitials = name => {
   if (!name) return 'U';
   const names = name.split(' ');
@@ -31,50 +35,27 @@ const getInitials = name => {
   return name.substring(0, 2).toUpperCase();
 };
 
-// Helper function to determine session status
 const getSessionStatus = (scheduleDate, scheduleTime) => {
-  // Return a default status if data is invalid
-  if (!scheduleDate || !scheduleTime) {
-    return 'Completed';
-  }
+  if (!scheduleDate || !scheduleTime) return 'Completed';
 
-  // 1. Create a Date object from the scheduleDate string (e.g., "2025-07-29T00:00:00.000Z")
   const datePart = new Date(scheduleDate);
-
-  // 2. Parse the time string (e.g., "04:00 PM")
   const timeMatch = scheduleTime.match(/(\d+):(\d+)\s(AM|PM)/);
-  if (!timeMatch) {
-    return 'Completed'; // Return default if time format is unexpected
-  }
+  if (!timeMatch) return 'Completed';
 
   let hours = parseInt(timeMatch[1], 10);
   const minutes = parseInt(timeMatch[2], 10);
   const meridian = timeMatch[3];
 
-  // Adjust hours for PM/AM format (e.g., "04:00 PM" becomes 16)
-  if (meridian === 'PM' && hours < 12) {
-    hours += 12;
-  }
-  // Handle midnight case (e.g., "12:00 AM" becomes 0)
-  if (meridian === 'AM' && hours === 12) {
-    hours = 0;
-  }
+  if (meridian === 'PM' && hours < 12) hours += 12;
+  if (meridian === 'AM' && hours === 12) hours = 0;
 
-  // 3. Combine date and time into a single, complete Date object
   const scheduleDateTime = new Date(datePart.getFullYear(), datePart.getMonth(), datePart.getDate(), hours, minutes);
-
-  // 4. Get the current time and calculate the session's end time (1 hour after start)
   const currentTime = new Date();
-  const sessionEndTime = new Date(scheduleDateTime.getTime() + 60 * 60 * 1000); // 1 hour duration
+  const sessionEndTime = new Date(scheduleDateTime.getTime() + 60 * 60 * 1000);
 
-  // 5. Compare times and return the status
-  if (currentTime < scheduleDateTime) {
-    return 'Upcoming';
-  } else if (currentTime >= scheduleDateTime && currentTime <= sessionEndTime) {
-    return 'Ongoing';
-  } else {
-    return 'Completed';
-  }
+  if (currentTime < scheduleDateTime) return 'Upcoming';
+  else if (currentTime >= scheduleDateTime && currentTime <= sessionEndTime) return 'Ongoing';
+  else return 'Completed';
 };
 
 
@@ -127,75 +108,61 @@ const History = ({ navigation }) => {
   };
 
   const renderItem = ({ item }) => {
-    // Get the dynamic status ('Upcoming', 'Ongoing', or 'Completed')
     const status = getSessionStatus(item.scheduleDate, item.scheduleTime);
 
-    // Map status strings to style objects for clean rendering
     const statusStyles = {
-      Upcoming: {
-        pill: styles.upcomingPill,
-        text: styles.upcomingText,
-      },
-      Ongoing: {
-        pill: styles.ongoingPill,
-        text: styles.ongoingText,
-      },
-      Completed: {
-        pill: styles.completedPill,
-        text: styles.completedText,
-      },
+      Upcoming: { pill: styles.upcomingPill, text: styles.upcomingText },
+      Ongoing: { pill: styles.ongoingPill, text: styles.ongoingText },
+      Completed: { pill: styles.completedPill, text: styles.completedText },
     };
 
     const currentStatusStyle = statusStyles[status] || statusStyles.Completed;
 
     const formattedDate = new Date(item?.scheduleDate).toLocaleDateString(
-      'en-GB', // Using 'en-GB' for DD/MM/YYYY format
-      {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      },
+      'en-GB',
+      { year: 'numeric', month: 'long', day: 'numeric' },
     );
 
     return (
-      <View style={styles.card}>
-        {/* Card Header */}
-        <View style={styles.cardHeader}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getInitials(item.counselorName)}</Text>
+      <View style={styles.cardWrapper}>
+        <View style={styles.card}>
+          {/* Card Header */}
+          <View style={styles.cardHeader}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{getInitials(item.counselorName)}</Text>
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.counselorName} numberOfLines={1}>
+                {item.counselorName}
+              </Text>
+              <Text style={styles.dateTime}>
+                {formattedDate} at {item.scheduleTime}
+              </Text>
+            </View>
+            <View style={[styles.statusPill, currentStatusStyle.pill]}>
+              <Text style={[styles.statusText, currentStatusStyle.text]}>
+                {status}
+              </Text>
+            </View>
           </View>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.counselorName} numberOfLines={1}>
-              {item.counselorName}
-            </Text>
-            <Text style={styles.dateTime}>
-              {formattedDate} at {item.scheduleTime}
-            </Text>
-          </View>
-          <View style={[styles.statusPill, currentStatusStyle.pill]}>
-            <Text style={[styles.statusText, currentStatusStyle.text]}>
-              {status}
-            </Text>
-          </View>
-        </View>
 
-        {/* Separator */}
-        <View style={styles.separator} />
+          <View style={styles.separator} />
 
-        {/* Card Footer */}
-        <View style={styles.cardFooter}>
-          <View style={styles.linkContainer}>
-            <Ionicons name="link-outline" size={20} color={'#666'} />
-            <Text style={styles.linkText} numberOfLines={1} ellipsizeMode="tail">
-              {item.meetLink}
-            </Text>
+          {/* Card Footer */}
+          <View style={styles.cardFooter}>
+            <View style={styles.linkContainer}>
+              <Ionicons name="link-outline" size={isTablet ? 22 : 20} color={'#666'} />
+              <Text style={styles.linkText} numberOfLines={1} ellipsizeMode="tail">
+                {item.meetLink}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleCopyLink(item.meetLink)}>
+              <Ionicons name="copy-outline" size={isTablet ? 18 : 16} color={primary} />
+              <Text style={styles.actionButtonText}>Copy</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleCopyLink(item.meetLink)}>
-            <Ionicons name="copy-outline" size={16} color={primary} />
-            <Text style={styles.actionButtonText}>Copy</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
@@ -215,7 +182,7 @@ const History = ({ navigation }) => {
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.headerButton}>
-            <Ionicons name="arrow-back" size={20} color={'#333'} />
+            <Ionicons name="arrow-back" size={isTablet ? 28 : 20} color={'#333'} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Booking History</Text>
           <View style={styles.headerButton} />
@@ -268,6 +235,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FC',
     borderBottomWidth: 1,
     borderBottomColor: '#EAECEE',
+    height: isTablet ? 70 : 60,
   },
   headerButton: {
     width: 40,
@@ -276,7 +244,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: responsiveFontSize(2.3),
+    fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.3),
     fontFamily: 'Poppins-SemiBold',
     color: '#1A1A1A',
   },
@@ -293,18 +261,28 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     color: '#6c757d',
   },
+  // --- FIX: List Layout ---
   listContentContainer: {
     flexGrow: 1,
-    paddingHorizontal: 15,
-    paddingTop: 10,
+    paddingTop: 20,
     paddingBottom: 20,
+    // Phones: Horizontal padding for spacing
+    // Tablets: No horizontal padding here; we control width in the wrapper
+    paddingHorizontal: isTablet ? 0 : 15,
+  },
+  // --- FIX: Card Layout ---
+  cardWrapper: {
+    // Phones: Take full width of the container (which has padding)
+    // Tablets: Take 92% of the screen width and center itself
+    width: isTablet ? '65%' : '100%',
+    alignSelf: 'center',
+    marginBottom: 15,
   },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     paddingVertical: 15,
     paddingHorizontal: 15,
-    marginBottom: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
@@ -316,31 +294,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
+    width: isTablet ? 55 : 45,
+    height: isTablet ? 55 : 45,
+    borderRadius: isTablet ? 27.5 : 22.5,
     backgroundColor: '#E0F2F1',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: isTablet || Platform.OS === 'android' ? 20 : 15,
   },
   avatarText: {
     color: primary,
     fontFamily: 'Poppins-Bold',
-    fontSize: responsiveFontSize(2),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(2),
   },
   headerTextContainer: {
     flex: 1,
   },
   counselorName: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: responsiveFontSize(2),
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(2),
     color: '#1A1A1A',
   },
   dateTime: {
     fontFamily: 'Poppins-Regular',
     color: '#666',
-    fontSize: responsiveFontSize(1.6),
+    fontSize: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.6),
   },
   statusPill: {
     paddingHorizontal: 10,
@@ -348,31 +326,27 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginLeft: 10,
   },
-  // ADDED: Styles for Upcoming status
   upcomingPill: {
-    backgroundColor: 'rgba(52, 152, 219, 0.1)', // Light blue
+    backgroundColor: 'rgba(52, 152, 219, 0.1)',
   },
-  // RENAMED from activePill for clarity
   ongoingPill: {
-    backgroundColor: 'rgba(39, 174, 96, 0.1)', // Light green
+    backgroundColor: 'rgba(39, 174, 96, 0.1)',
   },
   completedPill: {
-    backgroundColor: '#E9ECEF', // Light grey
+    backgroundColor: '#E9ECEF',
   },
   statusText: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: responsiveFontSize(1.5),
+    fontSize: isTablet ? responsiveFontSize(0.9) : responsiveFontSize(1.5),
   },
-  // ADDED: Styles for Upcoming text
   upcomingText: {
-    color: '#3498DB', // Blue
+    color: '#3498DB',
   },
-  // RENAMED from activeText for clarity
   ongoingText: {
-    color: '#27AE60', // Green
+    color: '#27AE60',
   },
   completedText: {
-    color: '#828282', // Grey
+    color: '#828282',
   },
   separator: {
     height: 1,
@@ -392,7 +366,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontFamily: 'Poppins-Medium',
-    fontSize: responsiveFontSize(1.7),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.7),
     color: '#333',
     marginLeft: 8,
   },
@@ -407,28 +381,29 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: primary,
     fontFamily: 'Poppins-SemiBold',
-    fontSize: responsiveFontSize(1.6),
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.6),
     marginLeft: 6,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: isTablet ? 50 : 0,
   },
   lottieEmpty: {
-    width: 250,
-    height: 250,
+    width: isTablet ? 350 : 250,
+    height: isTablet ? 350 : 250,
     marginBottom: 10,
   },
   emptyText: {
     fontFamily: 'Poppins-Medium',
-    fontSize: responsiveFontSize(2.2),
+    fontSize: isTablet ? responsiveFontSize(1.4) : responsiveFontSize(2.2),
     color: '#4F4F4F',
     textAlign: 'center',
   },
   emptySubText: {
     fontFamily: 'Poppins-Regular',
-    fontSize: responsiveFontSize(1.8),
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.8),
     color: '#828282',
     textAlign: 'center',
     marginTop: 8,

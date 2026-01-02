@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react'; // Ensure useEffect is imported
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,231 +11,211 @@ import {
   Animated,
   Easing,
   Platform,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { primary, secondary, background } from '../utils/colors';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import LinearGradient from 'react-native-linear-gradient';
 import {
   responsiveFontSize,
   responsiveHeight,
   responsiveWidth,
 } from 'react-native-responsive-dimensions';
-import SlidableSection from '../components/SlidableSection';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { fetchCounselors } from '../utils/fetchCounselors';
 import { useSelector } from 'react-redux';
-// useFocusEffect is no longer needed unless for other purposes
-import Icon from 'react-native-vector-icons/FontAwesome5';
-import LinearGradient from 'react-native-linear-gradient';
 
+// Local Imports
+import { primary, secondary, background, lightPrimary } from '../utils/colors';
+import SlidableSection from '../components/SlidableSection';
+import { fetchCounselors } from '../utils/fetchCounselors';
+
+// --- 1. Tablet Detection ---
 const { width } = Dimensions.get('window');
+const isTablet = width >= 768;
 
-// CounselorCard and PreferredCounselorCard components remain unchanged...
-const CounselorCard = ({ item, navigation }) => {
-  return (
-    <TouchableOpacity
-      onPress={() => navigation.navigate('CounselorDetails', { counselor: item })}
-      style={{
-        backgroundColor: '#fcfcfc',
-        padding: 12,
-        borderRadius: 22,
-        marginBottom: 20,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        marginHorizontal: 10
-      }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 15 }}>
-        <View style={{ flex: 0.7, backgroundColor: '#dbf4f4', borderRadius: 20 }}>
-          <View style={{ width: '100%', aspectRatio: 1 }}>
-            <Image
-              source={{ uri: item?.counselorId?.pic }}
-              style={{ width: '100%', height: '100%', borderRadius: 18 }}
-              resizeMode="cover"
-            />
-            {item?.counselorId?.gender && (
-              <View style={{ position: 'absolute', top: 1, left: 0, backgroundColor: secondary, borderRadius: 40, padding: 4 }}>
-                <Icon name={item.counselorId.gender === 'male' ? 'mars' : 'venus'} size={18} color="#000" />
-              </View>
-            )}
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginVertical: 5, marginHorizontal: 4 }}>
-            <Text allowFontScaling={true} style={{ fontSize: responsiveFontSize(1.8), fontFamily: 'Poppins-SemiBold', color: '#000', paddingTop: 2 }}>
-              {item?.counselorId?.name}
-            </Text>
-          </View>
-        </View>
-        <View style={{ flex: 1, gap: 10 }}>
-          <View style={{ flexDirection: 'column', gap: 6, alignItems: 'center', width: '100%' }}>
-            <View style={{ backgroundColor: primary, width: '100%', justifyContent: 'center', flexDirection: 'row', paddingVertical: 4, borderRadius: 9, borderColor: primary, borderWidth: 0.5 }}>
-              <Ionicons name="medkit" size={17} color={'#fff'} style={{ marginRight: 5 }} />
-              <Text allowFontScaling={true} style={{ fontSize: responsiveFontSize(1.8), fontFamily: 'Poppins-SemiBold', color: '#fff' }}>
-                Expertise
-              </Text>
-            </View>
-            <View style={{ gap: 6, flexDirection: 'row', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-start' }}>
-              {item?.speciality?.map((specialty, index) => (
-                <View key={index} style={{ backgroundColor: '#c2ecec', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 }}>
-                  <Text allowFontScaling={true} style={{ fontSize: responsiveFontSize(1.4), fontFamily: 'Poppins-Medium', color: '#000' }}>
-                    ✔ {specialty}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-      </View>
-      <LinearGradient colors={[secondary, '#c2e9fb']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 100, marginTop: 10, height: 42 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', height: '100%' }}>
-          <Ionicons name="wallet" size={17} color="#000" />
-          <Text allowFontScaling={true} style={{ fontSize: responsiveFontSize(1.9), fontFamily: 'Poppins-Regular', color: '#000', paddingTop: 3 }}>
-            Book a session at{' '}
-            <Text allowFontScaling={true} style={{ fontFamily: 'Poppins-Bold', fontSize: responsiveFontSize(2), color: '#000' }}>
-              ₹500
-            </Text>
-            {` `}
-            <Text allowFontScaling={true} style={{ fontFamily: 'Poppins-Regular', fontSize: responsiveFontSize(1.4), color: '#000', textDecorationLine: 'line-through' }}>
-              ₹600
-            </Text>
-          </Text>
-        </View>
-      </LinearGradient>
-    </TouchableOpacity>
-  );
-};
+// --- Component: PreferredCounselorCard (Redesigned) ---
+const PreferredCounselorCard = React.memo(({ item, navigation, index }) => {
+  // Simple fade-in animation on mount
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-const PreferredCounselorCard = ({ item, navigation, isActive }) => {
-  const scaleAnim = useRef(new Animated.Value(isActive ? 1 : 0.85)).current;
   useEffect(() => {
-    Animated.timing(scaleAnim, {
-      toValue: isActive ? 1 : 0.85,
-      duration: 200,
-      easing: Easing.ease,
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      delay: index * 100, // Staggered entrance
       useNativeDriver: true,
     }).start();
-  }, [isActive, scaleAnim]);
-  return (
-    <TouchableOpacity
-      onPress={() => navigation.navigate('CounselorDetails', { counselor: item })}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 15,
-        backgroundColor: '#fcfcfc',
-        padding: 13,
-        borderRadius: 20,
-        alignSelf: 'center',
-        width: width * 0.9,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        marginHorizontal: responsiveWidth(2),
-        opacity: isActive ? 1 : 0.7,
-        transform: [{ scale: scaleAnim }],
-      }}>
-      <View style={{ width: responsiveWidth(32), aspectRatio: 0.9, borderRadius: 20, overflow: 'hidden' }}>
-        <Image source={{ uri: item?.counselorId?.pic }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-      </View>
-
-      <View style={{ gap: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="person" size={17} color="#000" />
-          <Text allowFontScaling={true} style={{ fontSize: responsiveFontSize(1.9), fontFamily: 'Poppins-SemiBold', color: '#000', paddingTop: 2, width: '68%', flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">
-            {item?.counselorId?.name}
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-start', width: '84%' }}>
-          <Ionicons name="chatbubble-ellipses" size={17} color={'#000'} style={{ marginTop: 2 }} />
-          <View style={{ gap: 6, flexDirection: 'row', flexWrap: 'wrap', width: '72%' }}>
-            {item.languages.map((lang, index) => (
-              <View key={index} style={{ backgroundColor: primary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 1, paddingBottom: Platform.OS === 'ios' ? 4 : 2 }}>
-                <Text allowFontScaling={true} style={{ fontSize: responsiveFontSize(1.4), fontFamily: 'Poppins-Medium', color: '#fff', paddingTop: 3 }}>
-                  {lang}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="briefcase" size={17} color="#000" />
-          <Text allowFontScaling={true} style={{ fontSize: responsiveFontSize(1.9), fontFamily: 'Poppins-SemiBold', color: primary, paddingTop: 3 }}>
-            {item?.experience}+ years
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="wallet" size={17} color="#000" />
-          <Text allowFontScaling={true} style={{ fontSize: responsiveFontSize(1.9), fontFamily: 'Poppins-SemiBold', color: primary, paddingTop: 3 }}>
-            ₹{item?.priceId?.video}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-const PreferredCounselorsCarousel = ({ data, navigation, onClear }) => {
-  const [activeSlide, setActiveSlide] = useState(0);
-  const flatListRef = useRef(null);
-
-  useEffect(() => {
-    setActiveSlide(0);
-    if (flatListRef.current) {
-      flatListRef.current.scrollToOffset({ animated: false, offset: 0 });
-    }
-  }, [data]);
-
-  const handleScroll = useCallback(event => {
-    const slideSize = width * 0.9 + responsiveWidth(4);
-    const contentOffset = event.nativeEvent.contentOffset.x;
-    const index = Math.round(contentOffset / slideSize);
-    setActiveSlide(index);
   }, []);
 
   return (
-    <View style={{ paddingHorizontal: 0 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between', borderRadius: 13, marginHorizontal: 10 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#beebeb', flex: 1, paddingVertical: 8, borderRadius: 10, paddingHorizontal: 12 }}>
-          <MaterialCommunityIcons name="account-star-outline" size={20} color="#000" style={{ marginRight: 8 }} />
-          <Text allowFontScaling={true} style={{ fontFamily: 'Poppins-SemiBold', fontSize: responsiveFontSize(1.8), color: '#000', textTransform: 'capitalize', letterSpacing: 0.5, paddingTop: 3 }}>
-            Your Matched <Text style={{ color: primary }}>Counselors</Text>
-          </Text>
+    <Animated.View style={[styles.prefCardWrapper, { opacity: fadeAnim }]}>
+      <TouchableOpacity
+        activeOpacity={0.95}
+        onPress={() => navigation.navigate('CounselorDetails', { counselor: item })}
+        style={styles.prefCardContainer}
+      >
+        {/* "Best Match" Badge */}
+        <View style={styles.bestMatchBadge}>
+          <Ionicons name="star" size={12} color="#fff" />
+          <Text style={styles.bestMatchText}>Best Match</Text>
         </View>
-        <TouchableOpacity
-          onPress={onClear}
-          style={{ backgroundColor: secondary, borderRadius: 100, width: responsiveWidth(10), flexDirection: 'row', aspectRatio: 1 / 1, alignItems: 'center', justifyContent: 'center', marginLeft: 10, elevation: 1 }}>
-          <MaterialCommunityIcons name="pencil-outline" size={16} color="#000" />
+
+        <View style={styles.prefCardContent}>
+          {/* Avatar Section */}
+          <View style={styles.prefAvatarContainer}>
+            <Image source={{ uri: item?.counselorId?.pic }} style={styles.prefAvatar} />
+            <View style={styles.prefOnlineBadge} />
+          </View>
+
+          {/* Info Section */}
+          <View style={styles.prefInfo}>
+            <Text numberOfLines={1} style={styles.prefName}>{item?.counselorId?.name}</Text>
+
+            <View style={styles.prefRow}>
+              <Ionicons name="briefcase-outline" size={14} color="#666" />
+              <Text style={styles.prefSubText}>{item?.experience}+ Years Exp.</Text>
+            </View>
+
+            <View style={styles.prefRow}>
+              <Ionicons name="language-outline" size={14} color="#666" />
+              <Text numberOfLines={1} style={styles.prefSubText}>
+                {item?.languages?.slice(0, 2).join(', ')}
+                {item?.languages?.length > 2 && '...'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Price & Action */}
+          <View style={styles.prefAction}>
+            <Text style={styles.prefPrice}>₹{item?.priceId?.video}</Text>
+            <TouchableOpacity style={styles.prefBookBtn}>
+              <Ionicons name="arrow-forward" size={18} color={primary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
+// --- Component: PreferredCounselorsCarousel (Redesigned) ---
+const PreferredCounselorsCarousel = ({ data, navigation, onClear }) => {
+  return (
+    <View style={styles.carouselContainer}>
+      {/* Header Section */}
+      <View style={styles.carouselHeader}>
+        <View>
+          <Text style={styles.carouselTitle}>Recommended for You</Text>
+          <Text style={styles.carouselSubtitle}>Based on your preferences</Text>
+        </View>
+
+        <TouchableOpacity onPress={onClear} style={styles.clearFilterBtn}>
+          <Text style={styles.clearFilterText}>Clear Filters</Text>
+          <Ionicons name="close-circle-outline" size={18} color={primary} />
         </TouchableOpacity>
       </View>
+
+      {/* Grid List for Tablet, Horizontal for Mobile */}
       <FlatList
-        ref={flatListRef}
         data={data}
-        keyExtractor={item => item?.id}
-        renderItem={({ item, index }) => <PreferredCounselorCard item={item} navigation={navigation} isActive={index === activeSlide} />}
-        horizontal
+        key={isTablet ? 'pref-grid' : 'pref-list'}
+        keyExtractor={(item) => item?._id}
+        renderItem={({ item, index }) => (
+          <PreferredCounselorCard item={item} navigation={navigation} index={index} />
+        )}
+        horizontal={!isTablet} // Vertical grid on tablet, Horizontal scroll on phone
+        numColumns={isTablet ? 2 : 1} // 2 columns on tablet
+        columnWrapperStyle={isTablet ? styles.prefColumnWrapper : null}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: 15, paddingHorizontal: responsiveWidth(4) }}
-        snapToInterval={width * 0.9 + responsiveWidth(4)}
-        decelerationRate="fast"
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
+        contentContainerStyle={styles.carouselListContent}
+        ItemSeparatorComponent={() => <View style={{ width: 15, height: 15 }} />}
       />
-      {data.length > 1 && (
-        <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 5 }}>
-          {data.map((_, index) => (
-            <View key={index} style={{ height: 7, width: 7, borderRadius: 4, backgroundColor: index === activeSlide ? primary : '#ccc', marginHorizontal: 4 }} />
-          ))}
-        </View>
-      )}
     </View>
   );
 };
 
+// --- Component: CounselorCard (Standard List) ---
+const CounselorCard = React.memo(({ item, navigation }) => {
+  const genderIcon = item?.counselorId?.gender === 'male' ? 'mars' : 'venus';
+  const genderColor = item?.counselorId?.gender === 'male' ? '#2196F3' : '#E91E63';
 
-// --- Main Counselors Component ---
+  return (
+    <View style={styles.cardWrapper}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => navigation.navigate('CounselorDetails', { counselor: item })}
+        style={styles.cardContainer}>
+
+        {/* Top Section */}
+        <View style={styles.cardTop}>
+          <View style={styles.cardImageContainer}>
+            <Image
+              source={{ uri: item?.counselorId?.pic }}
+              style={styles.cardImage}
+              resizeMode="cover"
+            />
+            <View style={[styles.genderBadge, { backgroundColor: secondary }]}>
+              <FontAwesome name={genderIcon} size={isTablet ? 14 : 12} color={genderColor} />
+            </View>
+          </View>
+
+          <View style={styles.cardInfo}>
+            <View style={styles.nameRow}>
+              <Text allowFontScaling={true} numberOfLines={1} style={styles.cardName}>
+                {item?.counselorId?.name}
+              </Text>
+              <Ionicons name="checkmark-circle" size={isTablet ? 20 : 16} color={primary} style={styles.verifiedIcon} />
+            </View>
+
+            <View style={styles.expRow}>
+              <View style={styles.expBadge}>
+                <Ionicons name="briefcase" size={isTablet ? 14 : 12} color={primary} />
+                <Text style={styles.expText}>
+                  {item.experience}+ Years Exp.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.tagsRow}>
+              {item?.speciality?.slice(0, 3).map((specialty, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>{specialty}</Text>
+                </View>
+              ))}
+              {item?.speciality?.length > 3 && (
+                <Text style={styles.moreTagsText}>+{item.speciality.length - 3} more</Text>
+              )}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.cardDivider} />
+
+        <View style={styles.cardFooter}>
+          <View>
+            <Text style={styles.priceLabel}>Session Price</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.currentPrice}>₹500</Text>
+              <Text style={styles.oldPrice}>₹600</Text>
+            </View>
+          </View>
+
+          <LinearGradient
+            colors={[primary, '#4DB6AC']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.bookButton}>
+            <Text style={styles.bookButtonText}>Book Now</Text>
+            <Ionicons name="arrow-forward" size={16} color="#fff" style={{ marginRight: 15 }} />
+          </LinearGradient>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
+// --- Main Screen ---
 const Counselors = ({ navigation }) => {
   const userDetails = useSelector(state => state.user);
   const authToken = userDetails?.authToken;
@@ -253,11 +233,7 @@ const Counselors = ({ navigation }) => {
     setCounselorsLoading(false);
   }, []);
 
-  // FIX: Changed useFocusEffect to useEffect to prevent re-fetching on focus.
-  // This hook now runs only once when the component mounts.
   useEffect(() => {
-    // We only fetch if the counselor list is empty to avoid re-fetching on mount
-    // if data already exists from a previous state.
     if (counselors.length === 0) {
       const fetchInitialData = async () => {
         setLoading(true);
@@ -276,7 +252,7 @@ const Counselors = ({ navigation }) => {
       };
       fetchInitialData();
     }
-  }, [authToken]); // Dependency array ensures it runs if the user logs in/out.
+  }, [authToken]);
 
   const loadMoreCounselors = useCallback(async () => {
     if (loading || loadingMore || !hasMore) return;
@@ -291,7 +267,7 @@ const Counselors = ({ navigation }) => {
         setHasMore(false);
       }
     } catch (error) {
-      console.log('Error loading more counselors: ', error);
+      console.log('Error loading more: ', error);
     } finally {
       setLoadingMore(false);
     }
@@ -299,9 +275,9 @@ const Counselors = ({ navigation }) => {
 
   const renderHeader = useCallback(() => {
     return (
-      <View style={{ paddingBottom: 20 }}>
+      <View style={styles.listHeaderContainer}>
         {counselorsLoading ? (
-          <View style={{ height: responsiveHeight(25), justifyContent: 'center', alignItems: 'center', paddingVertical: 30 }}>
+          <View style={styles.loaderContainer}>
             <ActivityIndicator size="large" color={primary} />
           </View>
         ) : preferredCounselors ? (
@@ -311,84 +287,492 @@ const Counselors = ({ navigation }) => {
             onClear={() => setPreferredCounselors(null)}
           />
         ) : (
-          <SlidableSection onFinish={handleListUpdate} setCounselorsLoading={setCounselorsLoading} counselors={counselors} />
+          <SlidableSection
+            onFinish={handleListUpdate}
+            setCounselorsLoading={setCounselorsLoading}
+            counselors={counselors}
+          />
         )}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Platform.OS === 'ios' ? 15 : 10, paddingHorizontal: 10, marginTop: 20 }}>
-          <View style={{ flex: 1, height: 1, backgroundColor: '#ccc' }} />
-          <Text allowFontScaling={true} style={{ marginHorizontal: 10, fontFamily: 'Poppins-SemiBold', fontSize: responsiveFontSize(1.8), color: '#888' }}>Or</Text>
-          <View style={{ flex: 1, height: 1, backgroundColor: '#ccc' }} />
+
+        <View style={styles.dividerContainer}>
+          <View style={styles.dividerLine} />
+          <Text allowFontScaling={true} style={styles.dividerText}>Or</Text>
+          <View style={styles.dividerLine} />
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, marginBottom: 5 }}>
-          <MaterialCommunityIcons name="book-search-outline" size={30} color={primary} style={{ marginRight: 8 }} />
-          <Text allowFontScaling={true} style={{ fontSize: responsiveFontSize(1.8), fontFamily: 'Poppins-Medium', color: '#333', flex: 1 }}>
-            Browse through our list of expert counselors and book a session that fits your needs.
+
+        <View style={styles.browseHeader}>
+          {/* <MaterialCommunityIcons name="book-search-outline" size={isTablet ? 32 : 28} color={primary} style={{ marginRight: 8 }} /> */}
+          <Text allowFontScaling={true} style={styles.browseText}>
+            Browse our expert counselors and book a session.
           </Text>
         </View>
       </View>
     );
   }, [counselorsLoading, preferredCounselors, navigation, counselors, handleListUpdate]);
 
+  const renderEmptyState = () => {
+    if (loading) return null;
+    return (
+      <View style={styles.emptyStateContainer}>
+        <Ionicons name="search" size={isTablet ? responsiveFontSize(6) : responsiveFontSize(8)} color="#E0E0E0" />
+        <Text style={styles.emptyTitle}>No Counselors Found</Text>
+        <Text style={styles.emptySubtitle}>
+          Please try adjusting your search filters or check back later.
+        </Text>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: background, paddingBottom: 0 }}>
-        <StatusBar animated={true} barStyle={'dark-content'} hidden={false} backgroundColor={'#fff'} />
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar animated={true} barStyle={'dark-content'} backgroundColor="#fff" />
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 5, justifyContent: 'space-between', marginBottom: 10 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 35, height: 35, justifyContent: 'center', alignItems: 'center' }}>
-            <Ionicons name="arrow-back" size={20} color={'#333'} />
+        <View style={styles.screenHeader}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={isTablet ? 28 : 24} color={'#333'} />
           </TouchableOpacity>
-          <Text allowFontScaling={true} style={{ fontSize: responsiveFontSize(2.2), fontFamily: 'Poppins-SemiBold', color: '#000', paddingTop: 2 }}>
+          <Text allowFontScaling={true} style={styles.headerTitle}>
             Find Your Counselor
           </Text>
-          <View style={{ width: 35, height: 35 }}></View>
+          <View style={{ width: 40 }} />
         </View>
 
-        <FlatList
-          data={counselors}
-          keyExtractor={(item) => item?._id}
-          renderItem={({ item }) => <CounselorCard item={item} navigation={navigation} />}
-          ListHeaderComponent={renderHeader}
-          onEndReached={loadMoreCounselors}
-          showsVerticalScrollIndicator={false}
-          onEndReachedThreshold={0.5}
-          contentContainerStyle={{ paddingTop: 5, paddingHorizontal: 0, paddingBottom: Platform.OS === 'android' ? 90 : 70 }}
-          ListFooterComponent={
-            <>
-              {loadingMore && <ActivityIndicator size="small" />}
-              {!loadingMore && hasMore && counselors.length > 0 && (
-                <TouchableOpacity onPress={loadMoreCounselors} style={{ padding: 10, alignItems: 'center' }}>
-                  <Text style={{ color: primary, fontFamily: 'Poppins-SemiBold', fontSize: responsiveFontSize(2) }}>
-                    Load more data
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </>
-          }
-          ListEmptyComponent={
-            loading ? (
-              // Still show loader when fetching initial data
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" />
-              </View>
-            ) : (
-              // Show fallback UI with inline styles
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30, marginTop: -50 }}>
-                <Ionicons name="search" size={responsiveFontSize(8)} color="#A9A9A9" />
+        {loading && counselors.length === 0 ? (
+          <View style={styles.fullScreenLoader}>
+            <ActivityIndicator size="large" color={primary} />
+          </View>
+        ) : (
+          <FlatList
+            key={'counselor-list'}
+            data={counselors}
+            keyExtractor={(item) => item?._id}
+            renderItem={({ item }) => <CounselorCard item={item} navigation={navigation} />}
 
-                <Text style={{ fontFamily: 'Poppins-SemiBold', fontSize: responsiveFontSize(2.2), color: '#333333', marginTop: 20 }}>
-                  No Counselors Found
-                </Text>
+            // Force 1 column for main list (cards are full width in their container)
+            numColumns={1}
 
-                <Text style={{ fontFamily: 'Poppins-Regular', fontSize: responsiveFontSize(1.8), color: '#666666', textAlign: 'center', marginTop: 8 }}>
-                  Please try adjusting your search filters or check back later.
-                </Text>
-              </View>
-            )
-          }
-        />
+            ListHeaderComponent={renderHeader}
+            ListEmptyComponent={renderEmptyState}
+            onEndReached={loadMoreCounselors}
+            showsVerticalScrollIndicator={false}
+            onEndReachedThreshold={0.5}
+            contentContainerStyle={isTablet ? styles.tabletListContent : styles.listContent}
+            ListFooterComponent={
+              loadingMore ? (
+                <ActivityIndicator size="small" color={primary} style={{ marginVertical: 20 }} />
+              ) : null
+            }
+          />
+        )}
       </SafeAreaView>
     </SafeAreaProvider>
   );
 };
+
+// --- Styles ---
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: background,
+  },
+  screenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    height: isTablet ? 70 : undefined,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerTitle: {
+    fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.2),
+    fontFamily: 'Poppins-SemiBold',
+    color: '#1A1A1A',
+  },
+  listContent: {
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'android' ? 90 : 70,
+  },
+  tabletListContent: {
+    paddingTop: 16,
+    paddingBottom: 100,
+    width: '70%',
+    alignSelf: 'center',
+  },
+  fullScreenLoader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listHeaderContainer: {
+    paddingBottom: 10,
+  },
+  loaderContainer: {
+    height: responsiveHeight(25),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+    paddingHorizontal: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E0E0E0',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: isTablet ? responsiveFontSize(1.4) : responsiveFontSize(1.8),
+    color: '#9E9E9E',
+  },
+  browseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  browseText: {
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.8),
+    fontFamily: 'Poppins-Medium',
+    color: '#424242',
+    flex: 1,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    paddingVertical: 50,
+  },
+  emptyTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: isTablet ? responsiveFontSize(1.8) : responsiveFontSize(2.2),
+    color: '#333',
+    marginTop: 20,
+  },
+  emptySubtitle: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: isTablet ? responsiveFontSize(1.4) : responsiveFontSize(1.8),
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+
+  // --- Preferred Section Styles (Redesigned) ---
+  carouselContainer: {
+    marginBottom: 10,
+    paddingTop: 10,
+  },
+  carouselHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 15,
+  },
+  carouselTitle: {
+    fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.0),
+    fontFamily: 'Poppins-Bold',
+    color: '#333',
+  },
+  carouselSubtitle: {
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.4),
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+  },
+  clearFilterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    gap: 5,
+  },
+  clearFilterText: {
+    fontSize: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.4),
+    fontFamily: 'Poppins-Medium',
+    color: primary,
+  },
+  carouselListContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
+  prefColumnWrapper: {
+    justifyContent: 'space-between',
+  },
+
+  // --- Preferred Card (Redesigned) ---
+  prefCardWrapper: {
+    width: isTablet ? '48%' : responsiveWidth(80), // Fixed width on mobile for carousel
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    overflow: 'hidden',
+  },
+  prefCardContainer: {
+    // padding: 12,
+  },
+  bestMatchBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: primary,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    zIndex: 1,
+  },
+  bestMatchText: {
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: 'Poppins-Bold',
+  },
+  prefCardContent: {
+    padding: 14,
+    paddingTop: 35, // Space for badge
+  },
+  prefAvatarContainer: {
+    alignSelf: 'center',
+    marginBottom: 10,
+    position: 'relative',
+  },
+  prefAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#F3F4F6',
+  },
+  prefOnlineBadge: {
+    width: 12,
+    height: 12,
+    backgroundColor: '#10B981',
+    borderRadius: 6,
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  prefInfo: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  prefName: {
+    fontSize: isTablet ? responsiveFontSize(1.3) : responsiveFontSize(1.8),
+    fontFamily: 'Poppins-SemiBold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  prefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 2,
+  },
+  prefSubText: {
+    fontSize: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.4),
+    fontFamily: 'Poppins-Regular',
+    color: '#6B7280',
+  },
+  prefAction: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 5,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  prefPrice: {
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.8),
+    fontFamily: 'Poppins-Bold',
+    color: primary,
+  },
+  prefBookBtn: {
+    backgroundColor: '#F0FDFA',
+    padding: 8,
+    borderRadius: 10,
+  },
+
+  // --- Standard Card Styles ---
+  cardWrapper: {
+    width: '100%',
+  },
+  cardContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    marginBottom: 20,
+    marginHorizontal: isTablet ? 0 : 16,
+    padding: isTablet ? 20 : 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#f5f5f5',
+  },
+  cardTop: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+  cardImageContainer: {
+    width: isTablet ? 100 : 85,
+    height: isTablet ? 100 : 85,
+    position: 'relative',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+  },
+  genderBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    padding: 6,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  cardName: {
+    fontSize: isTablet ? responsiveFontSize(1.4) : responsiveFontSize(2),
+    fontFamily: 'Poppins-Bold',
+    color: '#1A1A1A',
+    flex: 1,
+  },
+  verifiedIcon: {
+    marginLeft: 4,
+  },
+  expRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  expBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: secondary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 5,
+  },
+  expText: {
+    fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.4),
+    fontFamily: 'Poppins-Medium',
+    color: primary,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+  },
+  tag: {
+    backgroundColor: '#F5F7FA',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#EEF0F4',
+  },
+  tagText: {
+    fontSize: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.3),
+    fontFamily: 'Poppins-Regular',
+    color: '#757575',
+  },
+  moreTagsText: {
+    fontSize: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.3),
+    fontFamily: 'Poppins-Medium',
+    color: '#757575',
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+    marginVertical: 12,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  priceLabel: {
+    fontSize: isTablet ? responsiveFontSize(1.0) : responsiveFontSize(1.3),
+    fontFamily: 'Poppins-Regular',
+    color: '#757575',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  currentPrice: {
+    fontSize: isTablet ? responsiveFontSize(1.6) : responsiveFontSize(2.2),
+    fontFamily: 'Poppins-Bold',
+    color: '#1A1A1A',
+  },
+  oldPrice: {
+    fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.6),
+    fontFamily: 'Poppins-Regular',
+    color: '#9E9E9E',
+    textDecorationLine: 'line-through',
+    marginBottom: 2,
+  },
+  bookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: responsiveHeight(5.2),
+    borderRadius: 25,
+    gap: 8,
+  },
+  bookButtonText: {
+    fontSize: isTablet ? responsiveFontSize(1.3) : responsiveFontSize(1.8),
+    fontFamily: 'Poppins-SemiBold',
+    color: '#fff',
+    marginLeft: 20
+  },
+});
 
 export default Counselors;
