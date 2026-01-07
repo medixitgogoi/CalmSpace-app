@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  Dimensions,
   Animated,
   StyleSheet,
   Image,
@@ -11,6 +10,7 @@ import {
   Platform,
   Modal,
   TouchableOpacity,
+  useWindowDimensions,
 } from 'react-native';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,31 +19,39 @@ import { logoutUser } from '../redux/UserSlice';
 import { useDispatch } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const { width } = Dimensions.get('window');
-const SIDEBAR_WIDTH = width * 0.75;
+// --- Helper for Adaptive Fonts ---
+const getAdaptiveFontSize = (size, width) => {
+  return width > 768 ? responsiveFontSize(size * 0.6) : responsiveFontSize(size);
+};
 
-// A beautiful, custom dialog component
-const LogoutDialog = ({ visible, onCancel, onConfirm }) => {
+// --- Custom Logout Dialog ---
+const LogoutDialog = ({ visible, onCancel, onConfirm, width }) => {
+  // Adaptive sizes for dialog
+  const isTablet = width > 768;
+  const titleSize = isTablet ? responsiveFontSize(1.2) : responsiveFontSize(2.5);
+  const msgSize = isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.9);
+  const btnTextSize = isTablet ? responsiveFontSize(1.2) : responsiveFontSize(2);
+
   return (
     <Modal
       transparent={true}
       visible={visible}
-      animationType="fade" // Fade in animation
+      animationType="fade"
       onRequestClose={onCancel}
     >
       <View style={styles.dialogOverlay}>
-        <View style={styles.dialogBox}>
-          <Ionicons name="warning-outline" size={60} color="#F97316" />
-          <Text style={styles.dialogTitle}>Logging Out</Text>
-          <Text style={styles.dialogMessage}>
+        <View style={[styles.dialogBox, { maxWidth: isTablet ? 450 : 320 }]}>
+          <Ionicons name="warning-outline" size={isTablet ? 50 : 60} color="#F97316" />
+          <Text style={[styles.dialogTitle, { fontSize: titleSize }]}>Logging Out</Text>
+          <Text style={[styles.dialogMessage, { fontSize: msgSize }]}>
             Are you sure you want to log out from your account?
           </Text>
           <View style={styles.dialogButtonContainer}>
             <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={[styles.cancelButtonText, { fontSize: btnTextSize }]}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.confirmLogoutButton} onPress={onConfirm}>
-              <Text style={styles.confirmLogoutButtonText}>Logout</Text>
+              <Text style={[styles.confirmLogoutButtonText, { fontSize: btnTextSize }]}>Logout</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -52,13 +60,23 @@ const LogoutDialog = ({ visible, onCancel, onConfirm }) => {
   );
 };
 
-const Sidebar = ({ visible, onClose, onQuickBoost, onSlot, onCommunity, onAppointment }) => {
+// --- Main Sidebar Component ---
+const Sidebar = ({ visible, onClose, onQuickBoost, onSlot, onCommunity, onAppointment, onEarnings }) => {
   const dispatch = useDispatch();
-  const sidebarPosition = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
-  const [isRendered, setIsRendered] = useState(visible);
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
 
-  // State to control the visibility of our custom dialog
+  // Calculate dynamic sidebar width: 75% for phones, fixed 350px for tablets
+  const sidebarWidth = isTablet ? 350 : width * 0.75;
+
+  // Animation State
+  // We initialize off-screen based on the calculated width
+  const sidebarPosition = useRef(new Animated.Value(-sidebarWidth)).current;
+  const [isRendered, setIsRendered] = useState(visible);
   const [dialogVisible, setDialogVisible] = useState(false);
+
+  // adaptive font helper for this scope
+  const fSize = (s) => getAdaptiveFontSize(s, width);
 
   useEffect(() => {
     if (visible) {
@@ -70,27 +88,23 @@ const Sidebar = ({ visible, onClose, onQuickBoost, onSlot, onCommunity, onAppoin
       }).start();
     } else {
       Animated.timing(sidebarPosition, {
-        toValue: -SIDEBAR_WIDTH,
+        toValue: -sidebarWidth, // Animate back to the specific width
         duration: 200,
         useNativeDriver: true,
       }).start(() => {
         setIsRendered(false);
       });
     }
-  }, [visible, sidebarPosition]);
+  }, [visible, sidebarPosition, sidebarWidth]);
 
   if (!isRendered) {
     return null;
   }
 
-  // This function now just shows our custom dialog
-  const handleLogoutPress = () => {
-    setDialogVisible(true);
-  };
+  const handleLogoutPress = () => setDialogVisible(true);
 
   const performLogout = async () => {
     try {
-      // First, close the dialog
       setDialogVisible(false);
       dispatch(logoutUser());
       await AsyncStorage.removeItem('userDetails');
@@ -108,32 +122,40 @@ const Sidebar = ({ visible, onClose, onQuickBoost, onSlot, onCommunity, onAppoin
         onClose();
         setTimeout(onPress, 100);
       }}>
-      <Ionicons name={icon} size={22} color="#4B5563" />
-      <Text style={styles.menuButtonText}>{text}</Text>
+      <Ionicons name={icon} size={isTablet ? 30 : 22} color="#4B5563" />
+      <Text style={[styles.menuButtonText, { fontSize: fSize(2.1) }]}>{text}</Text>
     </Pressable>
   );
 
   return (
     <View style={styles.container}>
       <Pressable onPress={onClose} style={styles.overlay} />
-      <Animated.View style={[styles.sidebar, { transform: [{ translateX: sidebarPosition }] }]}>
-        <SafeAreaView style={styles.safeAreaContainer}>
 
+      {/* Sidebar Animated View */}
+      <Animated.View
+        style={[
+          styles.sidebar,
+          {
+            width: sidebarWidth,
+            transform: [{ translateX: sidebarPosition }]
+          }
+        ]}
+      >
+        <SafeAreaView style={styles.safeAreaContainer}>
           <View>
             <View style={styles.header}>
               <Image
                 source={require('../assets/no_back_logo_color.png')}
-                style={styles.logo}
+                style={[styles.logo, { width: isTablet ? 80 : 90, height: isTablet ? 70 : 80 }]}
               />
-              <Text style={styles.headerTitle}>Calmspace</Text>
-              <Text style={styles.headerSubtitle}>Counselor Panel</Text>
+              <Text style={[styles.headerTitle, { fontSize: fSize(2.8) }]}>CalmSpace</Text>
+              <Text style={[styles.headerSubtitle, { fontSize: fSize(1.7) }]}>Counselor Panel</Text>
             </View>
 
             <View style={styles.menuContainer}>
               <MenuButton icon="flash-outline" text="Quick Boost" onPress={onQuickBoost} />
               <MenuButton icon="calendar-outline" text="Schedule Slot" onPress={onSlot} />
               <MenuButton icon="people-outline" text="Community" onPress={onCommunity} />
-              {/* --- THIS LINE IS UPDATED --- */}
               <MenuButton icon="list-outline" text="Appointments" onPress={onAppointment} />
             </View>
           </View>
@@ -142,19 +164,18 @@ const Sidebar = ({ visible, onClose, onQuickBoost, onSlot, onCommunity, onAppoin
             <Pressable
               style={({ pressed }) => [styles.logoutButton, pressed && styles.logoutButtonPressed]}
               onPress={handleLogoutPress}>
-              <Ionicons name="log-out-outline" size={22} color="#EF4444" />
-              <Text style={styles.logoutButtonText}>Logout</Text>
+              <Ionicons name="log-out-outline" size={isTablet ? 35 : 22} color="#EF4444" />
+              <Text style={[styles.logoutButtonText, { fontSize: fSize(2.1) }]}>Logout</Text>
             </Pressable>
           </View>
-
         </SafeAreaView>
       </Animated.View>
 
-      {/* Render our custom dialog */}
       <LogoutDialog
         visible={dialogVisible}
         onCancel={() => setDialogVisible(false)}
         onConfirm={performLogout}
+        width={width}
       />
     </View>
   );
@@ -170,7 +191,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   sidebar: {
-    width: SIDEBAR_WIDTH,
     height: '100%',
     backgroundColor: '#F8FAFC',
     position: 'absolute',
@@ -192,23 +212,19 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingVertical: 0,
+    paddingTop: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   logo: {
-    width: 90,
-    height: 80,
     resizeMode: 'contain',
     marginBottom: 10,
   },
   headerTitle: {
-    fontSize: responsiveFontSize(2.8),
     fontFamily: 'Poppins-Bold',
     color: '#1F2937',
   },
   headerSubtitle: {
-    fontSize: responsiveFontSize(1.7),
     fontFamily: 'Poppins-Regular',
     color: '#6B7280',
     marginBottom: 10
@@ -227,7 +243,6 @@ const styles = StyleSheet.create({
   },
   menuButtonText: {
     marginLeft: 15,
-    fontSize: responsiveFontSize(2.1),
     fontFamily: 'Poppins-SemiBold',
     color: '#374151',
   },
@@ -247,9 +262,9 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     marginLeft: 15,
-    fontSize: responsiveFontSize(2.1),
     fontFamily: 'Poppins-SemiBold',
     color: '#EF4444',
+    includeFontPadding: false,
   },
   dialogOverlay: {
     flex: 1,
@@ -259,7 +274,6 @@ const styles = StyleSheet.create({
   },
   dialogBox: {
     width: '85%',
-    maxWidth: 320,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 25,
@@ -277,19 +291,17 @@ const styles = StyleSheet.create({
     }),
   },
   dialogTitle: {
-    fontSize: responsiveFontSize(2.5),
     fontFamily: 'Poppins-Bold',
     color: '#1F2937',
     marginTop: 15,
-    marginBottom: 5,
+    marginBottom: 15,
   },
   dialogMessage: {
-    fontSize: responsiveFontSize(1.9),
     fontFamily: 'Poppins-Regular',
     color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 25,
-    lineHeight: 22,
+    marginBottom: 35,
+    // lineHeight: 22,
   },
   dialogButtonContainer: {
     flexDirection: 'row',
@@ -304,7 +316,6 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   cancelButtonText: {
-    fontSize: responsiveFontSize(2),
     fontFamily: 'Poppins-SemiBold',
     color: '#4B5563',
   },
@@ -316,7 +327,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   confirmLogoutButtonText: {
-    fontSize: responsiveFontSize(2),
     fontFamily: 'Poppins-SemiBold',
     color: '#FFFFFF',
   }
