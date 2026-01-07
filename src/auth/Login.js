@@ -121,7 +121,7 @@ const Login = ({ navigation }) => {
 
   // --- RESPONSIVE STYLE CONSTANTS ---
   // Fix the height for tablets so inputs don't look like huge boxes
-  const inputHeight = isTablet ? 60 : responsiveHeight(Platform.OS === 'ios' ? 6.2 : 7);
+  const inputHeight = isTablet ? responsiveHeight(6) : responsiveHeight(Platform.OS === 'ios' ? 6.2 : 7);
   // Restrict width on tablets to 60% of screen
   const formWidth = isTablet ? '60%' : '100%';
   const titleSize = isTablet ? responsiveFontSize(2.2) : responsiveFontSize(2.8);
@@ -184,7 +184,6 @@ const Login = ({ navigation }) => {
                 />
               </View>
             )}
-
 
             <View
               style={{
