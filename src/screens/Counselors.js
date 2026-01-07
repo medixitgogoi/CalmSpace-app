@@ -553,6 +553,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontFamily: 'Poppins-Bold',
+    includeFontPadding: false,
   },
   prefCardContent: {
     padding: 14,

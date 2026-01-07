@@ -1,16 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, Platform, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Platform, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useSelector } from 'react-redux';
 import * as Animatable from 'react-native-animatable';
 import Feather from 'react-native-vector-icons/Feather';
-// --- MODIFICATION: Import Ionicons for solid/outline icon styles ---
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { responsiveFontSize, responsiveHeight } from 'react-native-responsive-dimensions';
+import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import LinearGradient from 'react-native-linear-gradient';
 
-// Import Screens (assuming paths are correct)
+// --- Screen Imports (Same as before) ---
 import Home from '../screens/Home';
 import ProfileCreation from '../auth/ProfileCreation';
 import Welcome from '../auth/Welcome';
@@ -39,143 +38,214 @@ import MeetPaymentScreen from '../screens/MeetPaymentScreen';
 import ChatHistory from '../screens/ChatHistory';
 import Appointments from '../screens/counselor/Appointments';
 
-// --- Centralized Theme & Sizing ---
+// --- Theme Constants ---
 const THEME = {
   primary: '#2D9596',
-  inactive: '#6c757d',
+  primaryDark: '#237a7b',
+  secondary: '#56b4b5',
+  inactive: '#94A3B8',
   white: '#FFFFFF',
-  tabBarBg: '#e8f5f5',
+  tabBarBg: '#FFFFFF',
+  shadowColor: '#0F172A',
 };
 
-const SIZING = {
-  tabBarHeight: Platform.OS === 'ios' ? 70 : 60,
-  centralButtonSize: responsiveHeight(7),
-  centralButtonPopup: responsiveHeight(4.2),
-  screenMargin: 8,
-  screenMargin2: 12,
+// --- Helper Functions ---
+const getTabBarWidth = (width) => {
+  return width > 768 ? 760 : width * 0.92;
 };
 
-const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+// --- Components ---
 
-// --- MODIFICATION: Updated TabButton to handle solid/outline icons ---
-const TabButton = ({ item, onPress, accessibilityState }) => {
+const TabButton = ({ item, onPress, accessibilityState, isTablet }) => {
   const focused = accessibilityState?.selected;
   const viewRef = useRef(null);
   const textRef = useRef(null);
 
   useEffect(() => {
+    // Animation logic for standard tabs
     if (viewRef.current && textRef.current && !item.isCentral) {
-      // The animation remains the same and works on the container view
-      const scale = focused ? 1.14 : 1;
-      viewRef.current.animate({ 0: { scale: 1 }, 1: { scale } });
-      textRef.current.animate({ 0: { scale: 1 }, 1: { scale } });
+      if (focused) {
+        viewRef.current.animate({ 0: { scale: 1, translateY: 0 }, 1: { scale: 1.1, translateY: -2 } });
+        textRef.current.animate({ 0: { opacity: 0.7, scale: 1 }, 1: { opacity: 1, scale: 1 } });
+      } else {
+        viewRef.current.animate({ 0: { scale: 1.1, translateY: -2 }, 1: { scale: 1, translateY: 0 } });
+        textRef.current.animate({ 0: { opacity: 1 }, 1: { opacity: 0.7 } });
+      }
     }
   }, [focused, item.isCentral]);
 
+  // --- MODIFICATION: Central Button Label Handling ---
   if (item.isCentral) {
-    // This part for the central button's placeholder label remains unchanged
+    // We render a view that takes up space but only displays the text at the bottom.
+    // The icon is handled by the absolute Floating Action Button (FAB).
     return (
-      <View style={[styles.tabItem, { justifyContent: 'flex-end', paddingBottom: Platform.OS === 'ios' ? 12 : 10 }]} pointerEvents="none">
-        <Text style={[styles.tabLabel, { color: THEME.inactive }]}>{item.label}</Text>
+      <View style={[styles.tabItem, styles.centralTabItemPlaceholder]} pointerEvents="none">
+        {/* Push text to the bottom to align with others */}
+        <View style={{ flex: 1 }} />
+        <Text
+          allowFontScaling={false}
+          style={[
+            styles.tabLabel,
+            {
+              color: THEME.inactive, // Usually inactive color for the label as the button is the focus
+              fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.3),
+              marginBottom: isTablet ? 3 : 4, // Fine tune alignment
+            }
+          ]}
+        >
+          {item.label}
+        </Text>
       </View>
     );
   }
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={1} style={styles.tabItem}>
-      <Animatable.View ref={viewRef} duration={300} style={styles.tabIconContainer}>
-        {/*
-          * Here is the core change:
-          * We now use the Ionicons library.
-          * When the tab is 'focused', we use the 'activeIcon' name (solid).
-          * When it's not focused, we use the 'icon' name (outline).
-        */}
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      style={styles.tabItem}
+      accessibilityRole="button"
+    >
+      <Animatable.View ref={viewRef} duration={400} style={styles.iconWrapper}>
         <Ionicons
           name={focused ? item.activeIcon : item.icon}
-          size={18} // Slightly adjusted size for better visual balance with Ionicons
+          size={isTablet ? 26 : 22}
           color={focused ? THEME.primary : THEME.inactive}
         />
+
+        {focused && (
+          <Animatable.View
+            animation="fadeIn"
+            duration={300}
+            style={styles.activeDot}
+          />
+        )}
       </Animatable.View>
-      <Animatable.Text ref={textRef} allowFontScaling={false} style={[styles.tabLabel, { color: focused ? THEME.primary : THEME.inactive }]}>
+
+      <Animatable.Text
+        ref={textRef}
+        allowFontScaling={false}
+        style={[
+          styles.tabLabel,
+          {
+            color: focused ? THEME.primary : THEME.inactive,
+            fontSize: isTablet ? responsiveFontSize(1) : responsiveFontSize(1.2)
+          }
+        ]}
+      >
         {item.label}
       </Animatable.Text>
     </TouchableOpacity>
   );
 };
 
-
-// --- Custom Tab Bar Component with Solid Background (No changes needed here) ---
 const CustomTabBar = ({ state, descriptors, navigation }) => {
-  const centralItem = state.routes.find(route => descriptors[route.key].options.isCentral);
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const tabBarWidth = getTabBarWidth(width);
+
+  const centralItemIndex = state.routes.findIndex(route => descriptors[route.key].options.isCentral);
+  const centralItem = state.routes[centralItemIndex];
+
+  // Adjust FAB position based on device
+  const fabBottomPosition = Platform.OS === 'ios'
+    ? (isTablet ? 60 : 45) // Higher on iOS to clear home indicator/text
+    : (isTablet ? 55 : 40); // Adjust for Android
 
   return (
-    <View style={styles.tabBarContainer}>
-      {/* Central Button - Rendered above the bar for the notch effect */}
+    <View style={styles.tabBarContainer} pointerEvents="box-none">
+
+      {/* 1. Floating Action Button (Luna Icon) */}
       {centralItem && (
-        <TouchableOpacity
-          onPress={() => navigation.navigate('AiChat')}
-          activeOpacity={0.9}
-          style={styles.centralTab}
-        >
-          <LinearGradient
-            colors={[THEME.primary, '#56b4b5']} // Gradient for the button
-            style={styles.centralTabInner}
+        <View style={[styles.fabWrapper, { bottom: fabBottomPosition }]} pointerEvents="box-none">
+          <TouchableOpacity
+            onPress={() => navigation.navigate('AiChat')}
+            activeOpacity={0.9}
+            style={[
+              styles.centralTab,
+              {
+                width: isTablet ? 85 : 60,
+                height: isTablet ? 85 : 60,
+                // borderRadius: isTablet ? 0 : 30
+              }
+            ]}
           >
-            {/* The central button still uses Feather, which is fine as it's a standalone design */}
-            <Feather name={descriptors[centralItem.key].options.icon} size={25} color={THEME.white} />
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={[THEME.primary, THEME.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.centralTabInner}
+            >
+              <Feather
+                name={descriptors[centralItem.key].options.icon}
+                size={isTablet ? 40 : 28}
+                color={THEME.white}
+                style={Platform.OS === 'ios' && { marginBottom: 3, marginRight: 4 }}
+              />
+            </LinearGradient>
+
+            {/* <View style={styles.fabShadow} /> */}
+          </TouchableOpacity>
+        </View>
       )}
 
-      {/* The main tab bar background */}
-      <View style={styles.tabBarBackground}>
-        <View style={styles.tabBarContent}>
-          {state.routes.map((route, index) => {
-            const { options } = descriptors[route.key];
-            const isFocused = state.index === index;
+      {/* 2. The Main Tab Bar "Pill" */}
+      <View
+        style={[
+          styles.tabBarBackground,
+          {
+            width: tabBarWidth,
+            height: isTablet ? 100 : 65,
+            // paddingBottom: Platform.OS === 'ios' && !isTablet ? 0 : 0,
+          }
+        ]}
+      >
+        {state.routes.map((route, index) => {
+          const { options } = descriptors[route.key];
+          const isFocused = state.index === index;
 
-            const onPress = () => {
-              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name, route.params);
-              }
-            };
+          const onPress = () => {
+            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name, route.params);
+            }
+          };
 
-            return (
-              <TabButton
-                key={index}
-                item={{ ...options }}
-                onPress={onPress}
-                accessibilityState={{ selected: isFocused }}
-              />
-            );
-          })}
-        </View>
+          return (
+            <TabButton
+              key={index}
+              item={{ ...options }}
+              onPress={onPress}
+              accessibilityState={{ selected: isFocused }}
+              isTablet={isTablet}
+            />
+          );
+        })}
       </View>
     </View>
   );
 };
 
-
 const EmptyComponent = () => null;
 
-// --- Tab Navigator using the new CustomTabBar ---
+// --- Navigator Configurations ---
+const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
+
 const TabNavigator = () => {
-  // --- MODIFICATION: Updated screen definitions to include active (solid) and inactive (outline) icons ---
   const tabScreens = [
     { name: 'Home', label: 'Home', icon: 'home-outline', activeIcon: 'home', component: Home },
-    { name: 'Counselors', label: 'Counselors', icon: 'people-outline', activeIcon: 'people', component: Counselors },
-    // The central button keeps its original Feather icon
+    { name: 'Counselors', label: 'Experts', icon: 'people-outline', activeIcon: 'people', component: Counselors },
+    // Central Button Placeholder with Label
     { name: 'AiChatTab', label: 'Luna', icon: 'star', component: EmptyComponent, isCentral: true },
     { name: 'Boost', label: 'Boost', icon: 'flash-outline', activeIcon: 'flash', component: Boost },
-    { name: 'Community', label: 'Community', icon: 'chatbubble-ellipses-outline', activeIcon: 'chatbubble-ellipses', component: Community },
+    { name: 'Community', label: 'Social', icon: 'chatbubbles-outline', activeIcon: 'chatbubbles', component: Community },
   ];
 
   return (
     <Tab.Navigator
       tabBar={props => <CustomTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
     >
       {tabScreens.map((item, index) => (
         <Tab.Screen
@@ -189,7 +259,6 @@ const TabNavigator = () => {
   );
 };
 
-// --- Main Stack Navigator (No changes needed here) ---
 const GuestStackNavigator = () => {
   const userDetails = useSelector(state => state.user);
   const isProfileCreationDone = userDetails?.profileStatus;
@@ -233,63 +302,86 @@ const GuestStackNavigator = () => {
   );
 };
 
-// --- Styles for the new design (No changes needed here) ---
+// --- Styles ---
 const styles = StyleSheet.create({
   tabBarContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: SIZING.tabBarHeight + SIZING.centralButtonPopup,
     alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   tabBarBackground: {
-    position: 'absolute',
-    bottom: SIZING.screenMargin,
-    left: SIZING.screenMargin,
-    right: SIZING.screenMargin,
-    height: SIZING.tabBarHeight,
-    borderRadius: 17,
-    backgroundColor: THEME.tabBarBg,
-    elevation: 4,
-  },
-  tabBarContent: {
     flexDirection: 'row',
-    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: THEME.tabBarBg,
+    borderRadius: 55,
+    marginBottom: Platform.OS === 'ios' ? 20 : 15,
+    shadowColor: THEME.shadowColor,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    paddingHorizontal: 10,
   },
   tabItem: {
     flex: 1,
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
   },
-  tabIconContainer: {},
+  centralTabItemPlaceholder: {
+    justifyContent: 'flex-end', // Ensure text stays at bottom
+    alignItems: 'center',
+  },
+  iconWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  activeDot: {
+    position: 'absolute',
+    bottom: -6,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: THEME.primary,
+  },
   tabLabel: {
-    fontSize: responsiveFontSize(1.2),
     fontFamily: 'Poppins-Medium',
+    // --- MODIFICATION: Removed Line Height as requested ---
+    // lineHeight: undefined,
+    includeFontPadding: false, // Helps remove extra vertical space on Android
+  },
+  fabWrapper: {
+    position: 'absolute',
+    zIndex: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   centralTab: {
-    position: 'absolute',
-    top: 0,
-    width: SIZING.centralButtonSize,
-    height: SIZING.centralButtonSize,
-    borderRadius: SIZING.centralButtonSize / 2,
-    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
-    elevation: 10,
     shadowColor: THEME.primary,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 12,
   },
   centralTabInner: {
     width: '100%',
     height: '100%',
-    borderRadius: SIZING.centralButtonSize / 2,
+    borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFF',
+    // paddingBottom: 3
   },
 });
 
