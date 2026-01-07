@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Dimensions,
   ActivityIndicator,
   StyleSheet,
   Animated,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -22,22 +22,43 @@ import { useSelector } from 'react-redux';
 import Toast from 'react-native-toast-message';
 import { responsiveFontSize, responsiveHeight } from 'react-native-responsive-dimensions';
 
-// Placeholder colors
-const background = '#F8F8F8';
-const primary = '#0fb8ad';
+// --- Constants & Helpers ---
+const COLORS = {
+  background: '#F8F9FA',
+  white: '#FFFFFF',
+  primary: '#0fb8ad',
+  primaryDark: '#0C968D',
+  secondary: '#1fc8db',
+  textDark: '#1A1A1A',
+  textGrey: '#6C757D',
+  border: '#E9ECEF',
+  success: '#4CAF50',
+  successBg: '#E8F5E9',
+};
 
-const { width } = Dimensions.get('window');
+// Helper to prevent huge fonts on tablets
+const getAdaptiveFontSize = (size, width) => {
+  const isTablet = width > 768;
+  // If tablet, scale down slightly relative to screen size to look natural
+  return isTablet ? responsiveFontSize(size * 0.7) : responsiveFontSize(size);
+};
 
 const CounselorDetails = ({ route }) => {
   const { counselor } = route.params;
-
-  const userDetails = useSelector(state => state.user);
-  const authToken = userDetails?.authToken;
+  const { width, height } = useWindowDimensions();
   const navigation = useNavigation();
+  const userDetails = useSelector(state => state.user);
 
+  // --- Responsive Logic ---
+  const isTablet = width >= 768;
+  const MAX_CONTENT_WIDTH = 630;
+  // The content width is either the full screen (mobile) or the max width (tablet)
+  const contentWidth = isTablet ? Math.min(width, MAX_CONTENT_WIDTH) : width;
+  const tabWidth = contentWidth / 3;
+
+  // --- State & Refs ---
   const scrollRef = useRef(null);
   const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
-
   const [activeTab, setActiveTab] = useState(0);
   const [isModalVisible, setModalVisible] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -45,6 +66,7 @@ const CounselorDetails = ({ route }) => {
   const [scheduleTimes, setScheduleTimes] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // --- Effects ---
   useEffect(() => {
     if (counselor?.schedule) {
       setScheduleAt(counselor.schedule.scheduleAt);
@@ -52,6 +74,7 @@ const CounselorDetails = ({ route }) => {
     }
   }, [counselor?.schedule]);
 
+  // --- Callbacks ---
   const toggleModal = useCallback(() => {
     setModalVisible(prev => !prev);
     setSelectedSlot(null);
@@ -59,14 +82,25 @@ const CounselorDetails = ({ route }) => {
 
   const handleTabPress = useCallback(index => {
     setActiveTab(index);
-    scrollRef.current?.scrollTo({ x: width * index, animated: true });
-
+    scrollRef.current?.scrollTo({ x: contentWidth * index, animated: true });
     Animated.spring(tabIndicatorAnim, {
       toValue: index,
       useNativeDriver: true,
       bounciness: 0,
     }).start();
-  }, [width, tabIndicatorAnim]);
+  }, [contentWidth, tabIndicatorAnim]);
+
+  const onMomentumScrollEnd = useCallback((e) => {
+    const pageIndex = Math.round(e.nativeEvent.contentOffset.x / contentWidth);
+    if (pageIndex !== activeTab) {
+      setActiveTab(pageIndex);
+      Animated.spring(tabIndicatorAnim, {
+        toValue: pageIndex,
+        useNativeDriver: true,
+        bounciness: 0,
+      }).start();
+    }
+  }, [activeTab, contentWidth, tabIndicatorAnim]);
 
   const formatSlotRange = useCallback(timeStr => {
     const start = moment(timeStr, ['h:mm A']);
@@ -74,136 +108,121 @@ const CounselorDetails = ({ route }) => {
     return `${start.format('hh:mm A')} - ${end.format('hh:mm A')}`;
   }, []);
 
-  const formattedSlots = useMemo(() => {
-    return scheduleTimes?.map(formatSlotRange) || [];
-  }, [scheduleTimes, formatSlotRange]);
-
-  const formattedDate = useMemo(() => {
-    return scheduleAt ? moment(scheduleAt).format('MMMM D, YYYY') : '';
-  }, [scheduleAt]);
+  const formattedSlots = useMemo(() => scheduleTimes?.map(formatSlotRange) || [], [scheduleTimes, formatSlotRange]);
+  const formattedDate = useMemo(() => scheduleAt ? moment(scheduleAt).format('MMMM D, YYYY') : '', [scheduleAt]);
 
   const confirmBooking = useCallback(async () => {
     if (!selectedSlot) {
-      Toast.show({
-        type: 'error',
-        text1: 'Please select a slot!',
-        position: 'top',
-        topOffset: 40,
-      });
+      Toast.show({ type: 'error', text1: 'Please select a slot!', position: 'top', topOffset: 40 });
       return;
     }
-
     const scheduleTime = selectedSlot.split(' - ')[0];
-
     navigation.navigate('MeetPaymentScreen', {
-      counselor: counselor,
-      scheduleAt: scheduleAt,
-      scheduleTime: scheduleTime,
+      counselor,
+      scheduleAt,
+      scheduleTime,
       meetLink: counselor?.schedule?.meetLink,
-      selectedSlot: selectedSlot
+      selectedSlot
     });
     setModalVisible(false);
-
   }, [selectedSlot, scheduleAt, counselor, navigation]);
 
-  const tabWidth = width / 3;
+  // --- Animation Interpolation ---
   const translateX = tabIndicatorAnim.interpolate({
     inputRange: [0, 1, 2],
     outputRange: [0, tabWidth, tabWidth * 2],
   });
 
+  // --- Render Helpers ---
+  const renderInfoRow = (icon, title, value) => (
+    <View style={styles.infoRow}>
+      <View style={styles.infoIconContainer}>
+        <Ionicons name={icon} size={20} color={COLORS.primary} />
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={[styles.infoTitle, { fontSize: getAdaptiveFontSize(1.6, width) }]}>{title}</Text>
+        <Text style={[styles.infoValue, { fontSize: getAdaptiveFontSize(1.8, width) }]}>{value}</Text>
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar animated={true} barStyle={'dark-content'} hidden={false} />
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={27} color={'#333'} />
+        {/* Top Navigation */}
+        <View style={styles.headerContainer}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Counselor Details</Text>
-          <View style={styles.placeholderView} />
+          <Text style={[styles.headerTitle, { fontSize: getAdaptiveFontSize(2, width) }]}>
+            Counselor Profile
+          </Text>
+          <View style={styles.iconButton} />
         </View>
 
-        {/* Scrollable Info */}
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100, alignItems: 'center' }}
+        >
+          {/* Main Content Container (Constrained Width) */}
+          <View style={{ width: contentWidth }}>
 
-          {/* Image & Basic Info */}
-          <View style={styles.basicInfoContainer}>
-            <Image
-              source={{ uri: counselor?.counselorId?.pic }}
-              style={styles.profileImage}
-              resizeMode="cover"
-            />
-            <Text style={styles.counselorName}>
-              {counselor?.counselorId?.name}{' '}
-              <Text style={styles.genderPronouns}>
-                {counselor?.counselorId?.gender === 'Male' ? `(He/Him)` : `(She/her)`}
+            {/* Profile Section */}
+            <View style={styles.profileSection}>
+              <View style={styles.imageWrapper}>
+                <Image
+                  source={{ uri: counselor?.counselorId?.pic }}
+                  style={styles.profileImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                </View>
+              </View>
+
+              <Text style={[styles.nameText, { fontSize: getAdaptiveFontSize(2.6, width) }]}>
+                {counselor?.counselorId?.name}
               </Text>
-            </Text>
-            <Text style={styles.counselorPrice}>₹500</Text>
-          </View>
 
-          {/* Info Cards */}
-          <View style={styles.infoCardsContainer}>
+              <Text style={[styles.subText, { fontSize: getAdaptiveFontSize(1.8, width) }]}>
+                {counselor?.degree} • {counselor?.counselorId?.gender === 'Male' ? 'He/Him' : 'She/Her'}
+              </Text>
 
-            {/* --- ADDED: Experience Card --- */}
-            <View style={styles.infoCard}>
-              <Ionicons name="briefcase-outline" size={20} color={'#000'} style={styles.infoCardIcon} />
-              <View style={styles.infoCardTextContainer}>
-                <Text style={styles.infoCardTitle}>Experience</Text>
-                <Text style={styles.infoCardContent}>
-                  {counselor?.experience}+ Years
+              <View style={styles.priceTag}>
+                <Text style={[styles.priceText, { fontSize: getAdaptiveFontSize(1.8, width) }]}>
+                  ₹500 <Text style={{ fontSize: getAdaptiveFontSize(1.4, width), fontWeight: '400' }}>/ session</Text>
                 </Text>
               </View>
             </View>
 
-            {/* Education */}
-            <View style={styles.infoCard}>
-              <Ionicons name="school-outline" size={20} color={'#000'} style={styles.infoCardIcon} />
-              <View style={styles.infoCardTextContainer}>
-                <Text style={styles.infoCardTitle}>Education</Text>
-                <Text style={styles.infoCardContent}>
-                  {counselor?.degree}
-                </Text>
-              </View>
+            {/* Stats Grid - Redesigned Info Cards */}
+            <View style={[
+              styles.statsContainer,
+              isTablet && { padding: 40, width: '100%' } // <--- Add this condition
+            ]}>
+              {renderInfoRow('briefcase-outline', 'Experience', `${counselor?.experience}+ Years`)}
+              {renderInfoRow('language-outline', 'Languages', counselor?.languages?.join(', '))}
+              {renderInfoRow('medkit-outline', 'Specialties', counselor?.speciality?.join(', '))}
             </View>
 
-            {/* Specialties */}
-            <View style={styles.infoCard}>
-              <Ionicons name="medkit-outline" size={18} color={'#000'} style={styles.infoCardIcon} />
-              <View style={styles.infoCardTextContainer}>
-                <Text style={styles.infoCardTitle}>Specialties</Text>
-                <Text style={styles.infoCardContent}>
-                  {counselor?.speciality?.join(', ')}
-                </Text>
-              </View>
-            </View>
-
-            {/* Languages */}
-            <View style={styles.infoCard}>
-              <Ionicons name="chatbubble-ellipses-outline" size={20} color={'#000'} style={styles.infoCardIcon} />
-              <View style={styles.infoCardTextContainer}>
-                <Text style={styles.infoCardTitle}>Languages</Text>
-                <Text style={styles.infoCardContent}>
-                  {counselor?.languages?.join(', ')}
-                </Text>
-              </View>
-            </View>
-
-            {/* Tabs */}
-            <View style={styles.tabsContainer}>
+            {/* Tabs Header */}
+            <View style={styles.tabHeaderContainer}>
               {['Therapy', 'Info', 'Expertise'].map((tab, index) => (
                 <TouchableOpacity
                   key={index}
                   onPress={() => handleTabPress(index)}
-                  style={styles.tabButton}>
-                  <Text
-                    style={[
-                      styles.tabText,
-                      activeTab === index ? styles.activeTabText : styles.inactiveTabText,
-                    ]}>
+                  style={[styles.tabButton, { width: tabWidth }]}
+                >
+                  <Text style={[
+                    styles.tabText,
+                    {
+                      fontSize: getAdaptiveFontSize(1.8, width),
+                      color: activeTab === index ? COLORS.primary : COLORS.textGrey,
+                      fontFamily: activeTab === index ? 'Poppins-SemiBold' : 'Poppins-Medium'
+                    }
+                  ]}>
                     {tab}
                   </Text>
                 </TouchableOpacity>
@@ -211,140 +230,123 @@ const CounselorDetails = ({ route }) => {
               <Animated.View
                 style={[
                   styles.tabIndicator,
-                  {
-                    width: tabWidth,
-                    transform: [{ translateX }],
-                  },
+                  { width: tabWidth, transform: [{ translateX }] }
                 ]}
               />
             </View>
 
-            {/* Horizontal ScrollView for Tab Content */}
+            {/* Horizontal Scrollable Content */}
             <ScrollView
               ref={scrollRef}
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               scrollEventThrottle={16}
-              onScroll={e => {
-                const pageIndex = Math.round(
-                  e.nativeEvent.contentOffset.x / width,
-                );
-                if (pageIndex !== activeTab) {
-                  setActiveTab(pageIndex);
-                  Animated.spring(tabIndicatorAnim, {
-                    toValue: pageIndex,
-                    useNativeDriver: true,
-                    bounciness: 0,
-                  }).start();
-                }
-              }}
-              style={styles.tabContentScrollView}
-              contentContainerStyle={styles.tabContentScrollViewContent}>
-              <View style={styles.tabContentPage}>
-                <Text style={styles.tabContentText}>
-                  {counselor?.therapy}
-                </Text>
-              </View>
-              <View style={styles.tabContentPage}>
-                <Text style={styles.tabContentText}>
-                  {counselor?.info}
-                </Text>
-              </View>
-              <View style={styles.tabContentPage}>
-                <Text style={styles.tabContentText}>
-                  {counselor?.expertise}
-                </Text>
-              </View>
+              onMomentumScrollEnd={onMomentumScrollEnd}
+              style={{ width: contentWidth }}
+            >
+              {[counselor?.therapy, counselor?.info, counselor?.expertise].map((text, idx) => (
+                <View key={idx} style={[styles.tabContentPage, { width: contentWidth }]}>
+                  <Text style={[styles.textContent, { fontSize: getAdaptiveFontSize(1.8, width) }]}>
+                    {text || "No information provided."}
+                  </Text>
+                </View>
+              ))}
             </ScrollView>
+
           </View>
         </ScrollView>
 
-        {/* Schedule Button */}
-        <View style={styles.scheduleButtonWrapper}>
-          <TouchableOpacity onPress={toggleModal}>
+        {/* Floating Action Button */}
+        <View style={[styles.fabContainer, { width: isTablet ? MAX_CONTENT_WIDTH : '100%' }]}>
+          <TouchableOpacity onPress={toggleModal} activeOpacity={0.9}>
             <LinearGradient
-              colors={['#0fb8ad', '#1fc8db']}
+              colors={[COLORS.primary, COLORS.secondary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.scheduleButtonGradient}>
-              <Ionicons
-                name="calendar-outline"
-                size={20}
-                color="#fff"
-                style={styles.scheduleButtonIcon}
-              />
-              <Text style={styles.scheduleButtonText}>
-                Schedule Appointment
+              style={styles.bookButton}
+            >
+              <Ionicons name="calendar" size={isTablet ? 35 : 20} color={COLORS.white} />
+              <Text style={[styles.bookButtonText, { fontSize: getAdaptiveFontSize(2, width) }]}>
+                Book Appointment
               </Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
 
-        {/* Modal */}
-        {isModalVisible && (
-          <Modal
-            isVisible={isModalVisible}
-            onBackdropPress={toggleModal}
-            onBackButtonPress={toggleModal}
-            animationIn="zoomIn"
-            animationOut="zoomOut"
-            backdropTransitionOutTiming={0}
-            useNativeDriver={true}
-            hideModalContentWhileAnimating={true}
-            style={styles.modalStyle}>
-            <View style={styles.modalContent}>
-              <TouchableOpacity onPress={toggleModal} style={styles.modalCloseButton}>
-                <Ionicons name="close-circle-outline" size={28} color="#888" />
+        {/* Booking Modal */}
+        <Modal
+          isVisible={isModalVisible}
+          onBackdropPress={toggleModal}
+          onBackButtonPress={toggleModal}
+          animationIn="fadeInUp"
+          animationOut="fadeOutDown"
+          useNativeDriver
+          style={styles.modal}
+        >
+          <View style={[styles.modalContainer, { width: isTablet ? 500 : '90%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { fontSize: getAdaptiveFontSize(2, width) }]}>
+                Available Slots
+              </Text>
+              <TouchableOpacity onPress={toggleModal} style={styles.closeModalBtn}>
+                <Ionicons name="close" size={24} color={COLORS.textGrey} />
               </TouchableOpacity>
+            </View>
 
-              {formattedSlots?.length > 0 && (
-                <Text style={styles.modalDateText}>
-                  Select a Time Slot for {formattedDate}
-                </Text>
-              )}
+            <Text style={[styles.modalSubtitle, { fontSize: getAdaptiveFontSize(1.6, width) }]}>
+              {formattedDate}
+            </Text>
 
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.modalSlotsScrollView}>
-                {formattedSlots.length > 0 ? (
-                  formattedSlots.map((slot, index) => (
+            <ScrollView style={{ maxHeight: height * 0.4 }} showsVerticalScrollIndicator={false}>
+              {formattedSlots.length > 0 ? (
+                <View style={styles.slotsGrid}>
+                  {formattedSlots.map((slot, index) => (
                     <TouchableOpacity
                       key={index}
                       onPress={() => setSelectedSlot(slot)}
                       style={[
-                        styles.slotItem,
-                        selectedSlot === slot && styles.selectedSlotItem,
+                        styles.slotChip,
+                        selectedSlot === slot && styles.slotChipSelected
+                      ]}
+                    >
+                      <Text style={[
+                        styles.slotText,
+                        selectedSlot === slot && styles.slotTextSelected,
+                        { fontSize: getAdaptiveFontSize(1.6, width) }
                       ]}>
-                      <Text style={styles.slotText}>{slot}</Text>
+                        {slot}
+                      </Text>
                     </TouchableOpacity>
-                  ))
-                ) : (
-                  <Text style={styles.noSlotsText}>No slots available for this date. Please check back later for new openings.</Text>
-                )}
-              </ScrollView>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptySlots}>
+                  <Ionicons name="calendar-outline" size={40} color={COLORS.border} />
+                  <Text style={styles.emptySlotsText}>No slots available</Text>
+                </View>
+              )}
+            </ScrollView>
 
-              <TouchableOpacity
-                onPress={confirmBooking}
-                disabled={!selectedSlot || loading}
-                style={[
-                  styles.confirmButton,
-                  (!selectedSlot || loading) && styles.confirmButtonDisabled,
-                ]}>
-                {loading ? (
-                  <ActivityIndicator size={20} color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="shield-checkmark-outline" size={24} color="#fff" />
-                    <Text style={styles.confirmButtonText}>
-                      Pay to confirm slot
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </Modal>
-        )}
+            <TouchableOpacity
+              onPress={confirmBooking}
+              disabled={!selectedSlot || loading}
+              style={[
+                styles.confirmBtn,
+                (!selectedSlot || loading) && styles.confirmBtnDisabled
+              ]}
+            >
+              {loading ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={[styles.confirmBtnText, { fontSize: getAdaptiveFontSize(1.8, width) }]}>
+                  Proceed to Pay
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </Modal>
+
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -353,256 +355,261 @@ const CounselorDetails = ({ route }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: background,
+    backgroundColor: COLORS.background,
   },
-  header: {
+  headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
     justifyContent: 'space-between',
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.background,
   },
-  backButton: {
-    width: 35,
-    height: 35,
+  iconButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  headerTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    color: COLORS.textDark,
+  },
+  // --- Profile Styles ---
+  profileSection: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  imageWrapper: {
+    position: 'relative',
+    marginBottom: 16,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  profileImage: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    borderWidth: 4,
+    borderColor: COLORS.white,
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: COLORS.white,
+    borderRadius: 15,
+    padding: 2,
+  },
+  nameText: {
+    fontFamily: 'Poppins-Bold',
+    color: COLORS.textDark,
+    textAlign: 'center',
+  },
+  subText: {
+    fontFamily: 'Poppins-Medium',
+    color: COLORS.textGrey,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  priceTag: {
+    backgroundColor: COLORS.successBg,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 12,
+  },
+  priceText: {
+    fontFamily: 'Poppins-Bold',
+    color: COLORS.success,
+  },
+  // --- Stats / Info Styles ---
+  statsContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: 16,
+    marginBottom: 24,
+    width: '92%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    gap: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  infoIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#E0F7FA',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: responsiveFontSize(2.5),
+  infoTitle: {
+    fontFamily: 'Poppins-Regular',
+    color: COLORS.textGrey,
+    marginBottom: 2,
+  },
+  infoValue: {
     fontFamily: 'Poppins-SemiBold',
-    color: '#000',
-    paddingTop: 2,
+    color: COLORS.textDark,
+    // lineHeight: 22,
   },
-  placeholderView: {
-    width: 35,
-    height: 35,
-  },
-  scrollViewContent: {
-    paddingBottom: 50,
-  },
-  basicInfoContainer: {
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  profileImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 75,
-    borderWidth: 3,
-    borderColor: primary,
-  },
-  counselorName: {
-    fontSize: responsiveFontSize(2.5),
-    fontFamily: 'Poppins-SemiBold',
-    color: '#000',
-    marginTop: 10,
-  },
-  genderPronouns: {
-    fontSize: responsiveFontSize(1.7),
-    fontFamily: 'Poppins-Medium',
-    color: '#555',
-  },
-  counselorPrice: {
-    fontSize: responsiveFontSize(2),
-    fontFamily: 'Poppins-SemiBold',
-    color: '#333',
-    marginTop: 5,
-  },
-  infoCardsContainer: {
-    marginVertical: 20,
-  },
-  infoCard: {
-    backgroundColor: '#e5f7f7',
-    padding: 15,
-    borderRadius: 18,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+  // --- Tabs Styles ---
+  tabHeaderContainer: {
     flexDirection: 'row',
-    marginBottom: 15,
-    marginHorizontal: 20,
-    alignItems: 'flex-start',
-  },
-  infoCardIcon: {
-    marginTop: 2,
-  },
-  infoCardTextContainer: {
-    paddingLeft: 10,
-    flex: 1,
-  },
-  infoCardTitle: {
-    fontSize: responsiveFontSize(2.1),
-    fontFamily: 'Poppins-SemiBold',
-    color: '#000',
-    marginBottom: 5
-  },
-  infoCardContent: {
-    fontSize: responsiveFontSize(1.8),
-    fontFamily: 'Poppins-Medium',
-    color: '#555',
-    lineHeight: responsiveFontSize(2.5),
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 10,
-    marginTop: 10,
-    position: 'relative',
     borderBottomWidth: 1,
-    borderColor: '#eee',
-    paddingBottom: 5,
+    borderBottomColor: COLORS.border,
+    marginBottom: 16,
+    position: 'relative',
   },
   tabButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 5,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabText: {
-    fontSize: responsiveFontSize(2.1),
-    fontFamily: 'Poppins-SemiBold',
-  },
-  activeTabText: {
-    color: primary,
-  },
-  inactiveTabText: {
-    color: '#999',
+    fontFamily: 'Poppins-Medium',
   },
   tabIndicator: {
     position: 'absolute',
-    height: 3,
-    backgroundColor: primary,
     bottom: 0,
     left: 0,
-    borderRadius: 2,
-  },
-  tabContentScrollView: {
-    width: width,
-  },
-  tabContentScrollViewContent: {
-    paddingHorizontal: 5,
-    paddingVertical: 10,
+    height: 3,
+    backgroundColor: COLORS.primary,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
   },
   tabContentPage: {
-    width: width,
-    paddingHorizontal: 15,
+    paddingHorizontal: 24,
   },
-  tabContentText: {
-    fontSize: responsiveFontSize(1.8),
-    fontFamily: 'Poppins-Medium',
-    color: '#333',
-    lineHeight: responsiveFontSize(2.5),
+  textContent: {
+    fontFamily: 'Poppins-Regular',
+    color: COLORS.textGrey,
+    // lineHeight: 28,
+    textAlign: 'left',
   },
-  scheduleButtonWrapper: {
+  // --- Floating Button Styles ---
+  fabContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 25 : 20,
-    left: 10,
-    right: 10,
-    borderRadius: 50,
-    overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
+    bottom: 0,
+    alignSelf: 'center',
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    backgroundColor: 'rgba(248, 249, 250, 0.9)', // Semi-transparent bg
   },
-  scheduleButtonGradient: {
+  bookButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 50,
-    height: Platform.OS === 'ios' ? 65 : 55
+    // paddingVertical: 16,
+    height: responsiveHeight(6),
+    borderRadius: 16,
+    gap: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  scheduleButtonIcon: {
-    marginRight: 10,
+  bookButtonText: {
+    fontFamily: 'Poppins-Bold',
+    color: COLORS.white,
+    includeFontPadding: false, // killer learning to remove the extra space around text on Android
   },
-  scheduleButtonText: {
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: responsiveFontSize(2.2),
-    color: '#fff',
-    paddingTop: 2,
-  },
-  modalStyle: {
+  // --- Modal Styles ---
+  modal: {
     justifyContent: 'center',
     alignItems: 'center',
     margin: 0,
   },
-  modalContent: {
-    backgroundColor: '#f1fbfb',
-    borderRadius: 25,
-    paddingHorizontal: 25,
-    paddingVertical: 20,
-    width: '88%',
-    maxHeight: '75%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 10,
-    paddingTop: 40
+  modalContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: 24,
+    padding: 24,
+    maxHeight: '80%',
   },
-  modalCloseButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    padding: 5,
-    zIndex: 1,
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  modalDateText: {
-    fontSize: responsiveFontSize(2.3),
-    fontFamily: 'Poppins-SemiBold',
-    marginBottom: 18,
-    marginTop: 25,
-    textAlign: 'center',
-    color: primary,
+  modalTitle: {
+    fontFamily: 'Poppins-Bold',
+    color: COLORS.textDark,
   },
-  modalSlotsScrollView: {
-    paddingBottom: 10,
+  modalSubtitle: {
+    fontFamily: 'Poppins-Medium',
+    color: COLORS.primary,
+    marginBottom: 20,
   },
-  slotItem: {
+  closeModalBtn: {
+    padding: 4,
+  },
+  slotsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  slotChip: {
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    marginVertical: 7,
-    borderWidth: 1.5,
-    borderColor: '#ccc',
-    borderRadius: 15,
-    backgroundColor: '#fff',
-    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+    minWidth: '45%',
+    alignItems: 'center',
   },
-  selectedSlotItem: {
-    borderColor: '#4CAF50',
-    backgroundColor: '#e8f5e9',
+  slotChipSelected: {
+    backgroundColor: COLORS.successBg,
+    borderColor: COLORS.success,
   },
   slotText: {
-    fontSize: responsiveFontSize(1.9),
     fontFamily: 'Poppins-Medium',
-    color: '#333',
+    color: COLORS.textDark,
   },
-  noSlotsText: {
-    fontSize: responsiveFontSize(1.8),
-    fontFamily: 'Poppins-Medium',
-    color: '#555',
-    textAlign: 'center',
-    marginTop: 20,
+  slotTextSelected: {
+    color: COLORS.success,
+    fontFamily: 'Poppins-SemiBold',
   },
-  confirmButton: {
-    backgroundColor: '#4CAF50',
-    height: responsiveHeight(Platform.OS === 'ios' ? 7.5 : 7),
-    borderRadius: Platform.OS === 'ios' ? 18 : 15,
-    marginTop: 20,
+  emptySlots: {
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8
+    padding: 30,
+    gap: 10,
   },
-  confirmButtonDisabled: {
-    backgroundColor: '#ccc',
-    height: responsiveHeight(Platform.OS === 'ios' ? 7.5 : 7),
+  emptySlotsText: {
+    fontFamily: 'Poppins-Medium',
+    color: COLORS.textGrey,
   },
-  confirmButtonText: {
-    color: '#fff',
-    fontSize: responsiveFontSize(2.2),
-    fontFamily: 'Poppins-SemiBold',
+  confirmBtn: {
+    backgroundColor: COLORS.success,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  confirmBtnDisabled: {
+    backgroundColor: COLORS.border,
+  },
+  confirmBtnText: {
+    fontFamily: 'Poppins-Bold',
+    color: COLORS.white,
   },
 });
 
