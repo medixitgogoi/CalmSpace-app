@@ -1,85 +1,87 @@
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
   StatusBar,
   TouchableOpacity,
   Image,
-  ActivityIndicator,
   Platform,
+  StyleSheet,
+  useWindowDimensions,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useEffect, useState } from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import LottieView from 'lottie-react-native';
+
+// Local Utils & Components
 import { fetchUserData } from '../../utils/fetchUserData';
 import InfoRow from '../../components/InfoRow';
 import Sidebar from '../../components/Sidebar';
-import LottieView from 'lottie-react-native';
 import { getCounselorByID } from '../../utils/getCounselorByID';
 import { connectSocket } from '../../redux/socketSlice';
 import { background } from '../../utils/colors';
 
+// Helper for adaptive font sizing on tablets vs phones
+const getAdaptiveFontSize = (size, width) => {
+  return width > 768 ? responsiveFontSize(size * 0.7) : responsiveFontSize(size);
+};
+
 const Dashboard = ({ navigation }) => {
   const dispatch = useDispatch();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const MAX_CONTENT_WIDTH = 600;
 
+  // --- State ---
   const [sidebarVisible, setSidebarVisible] = useState(false);
-
   const userDetails = useSelector(state => state.user);
   const authToken = userDetails?.authToken;
 
   const [data, setData] = useState(null);
-
   const [newCounselor, setNewCounselor] = useState(false);
   const [infoCounselorAdded, setInfoCounselorAdded] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [userLoading, setUserLoading] = useState(true);
   const [counselorLoading, setCounselorLoading] = useState(true);
-
   const [userId, setUserId] = useState(null);
 
-  // fetchUserData
+  // --- Effects ---
+
+  // 1. Fetch User Data
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
         try {
-          const data = await fetchUserData(authToken);
-
-          setData(data?.user);
-
-          if (data?.isComplete) {
-            setNewCounselor(false);
-          } else {
-            setNewCounselor(true);
-          }
+          const userData = await fetchUserData(authToken);
+          setData(userData?.user);
+          setNewCounselor(!userData?.isComplete);
         } catch (error) {
-          console.log('Error fetching counselor data: ', error);
+          console.log('Error fetching user data: ', error);
         } finally {
           setUserLoading(false);
         }
       };
-
       fetchData();
       return () => { };
-    }, []),
+    }, [authToken]),
   );
 
-  // getCounselorByID
+  // 2. Fetch Counselor Data
   useFocusEffect(
     useCallback(() => {
       if (!newCounselor) {
         const fetchData = async () => {
           try {
-            const data = await getCounselorByID(authToken);
-
-            if (!data) {
+            const counselorData = await getCounselorByID(authToken);
+            if (!counselorData) {
               setInfoCounselorAdded(false);
-            }
-
-            if (data) {
-              setUserId(data?.counselorId?._id);
+            } else {
+              setUserId(counselorData?.counselorId?._id);
             }
           } catch (error) {
             console.log('Error fetching counselor: ', error);
@@ -87,323 +89,323 @@ const Dashboard = ({ navigation }) => {
             setCounselorLoading(false);
           }
         };
-
         fetchData();
       }
-    }, [newCounselor, authToken]), // dependencies must include used variables
+    }, [newCounselor, authToken]),
   );
 
-  // Combine loading states
+  // 3. Combine Loading States
   useEffect(() => {
-    if (!userLoading && !counselorLoading) {
+    // If it's a new counselor (incomplete profile), we don't wait for counselorLoading
+    if (newCounselor && !userLoading) {
+      setLoading(false);
+    } else if (!userLoading && !counselorLoading) {
       setLoading(false);
     }
-  }, [userLoading, counselorLoading]);
+  }, [userLoading, counselorLoading, newCounselor]);
 
-  // call connect socket
+  // 4. Connect Socket
   useEffect(() => {
     if (userId) {
-      dispatch(connectSocket({ userId: userId }));
+      dispatch(connectSocket({ userId }));
     }
-  }, [userId]);
+  }, [userId, dispatch]);
+
+  // --- Render Helpers ---
+
+  // Navigation Handlers
+  const handleNavigation = (screen) => {
+    setSidebarVisible(false);
+    navigation.navigate(screen);
+  };
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView
-        style={{ flex: 1, paddingHorizontal: 20, backgroundColor: '#fff' }}>
+      <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" backgroundColor="#ecf9f9" />
 
-        {/* Menu icon */}
+        {/* --- Header / Menu Icon --- */}
         {!newCounselor && (
           <TouchableOpacity
             onPress={() => setSidebarVisible(true)}
-            style={{ position: 'absolute', top: Platform.OS === 'ios' ? 55 : 45, left: 18 }}>
-            <Ionicons name="menu-outline" size={25} color="#0f172a" />
+            style={styles.menuButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="menu-outline" size={30} color="#0f172a" />
           </TouchableOpacity>
         )}
 
-        {/* Sidebar */}
+        {/* --- Sidebar Component --- */}
         <Sidebar
           visible={sidebarVisible}
           onClose={() => setSidebarVisible(false)}
-          onQuickBoost={() => {
-            setSidebarVisible(false);
-            navigation.navigate('QuickBoost');
-          }}
-          onSlot={() => {
-            setSidebarVisible(false);
-            navigation.navigate('Slot');
-          }}
-          onCommunity={() => {
-            setSidebarVisible(false);
-            navigation.navigate('CommunityCounselor');
-          }}
-          onAppointment={() => {
-            setSidebarVisible(false);
-            navigation.navigate('Appointments')
-          }}
-
+          onQuickBoost={() => handleNavigation('QuickBoost')}
+          onSlot={() => handleNavigation('Slot')}
+          onCommunity={() => handleNavigation('CommunityCounselor')}
+          onAppointment={() => handleNavigation('Appointments')}
         />
 
-        {loading ? (
-          <View
-            style={{
-              flex: 1,
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: background,
-            }}>
-            {/* Lottie Animation */}
-            <View
-              style={{
-                width: 270,
-                height: 270,
-                alignSelf: 'center',
-                marginBottom: 20,
-              }}>
-              <LottieView
-                source={require('../../assets/animations/loading.json')}
-                autoPlay
-                loop
-                style={{
-                  height: '100%',
-                  alignSelf: 'center',
-                  marginBottom: 20,
-                  width: '100%',
-                }}
-              />
-            </View>
-          </View>
-        ) : (
-          <>
-            {!newCounselor ? (
+        {/* --- Main Content --- */}
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContainer,
+            { alignItems: 'center' } // Center content for wide screens
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Constrained Width Container for Tablets */}
+          <View style={{ width: isTablet ? MAX_CONTENT_WIDTH : '100%' }}>
+
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <View style={{ width: width * 0.6, height: width * 0.6, maxWidth: 300, maxHeight: 300 }}>
+                  <LottieView
+                    source={require('../../assets/animations/loading.json')}
+                    autoPlay
+                    loop
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                </View>
+              </View>
+            ) : (
               <>
-                <View style={{ alignItems: 'center', marginTop: 40 }}>
-                  <Image
-                    source={{ uri: data?.pic }}
-                    style={{
-                      width: 100,
-                      height: 100,
-                      borderRadius: 50,
-                      borderWidth: 2,
-                      borderColor: '# ',
-                      marginBottom: 10,
-                    }}
-                  />
-                  <Text
-                    style={{
-                      fontFamily: 'Poppins-SemiBold',
-                      fontSize: responsiveFontSize(2.5),
-                      color: '#0f172a',
-                    }}>
-                    {data?.name}
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: 'Poppins-Regular',
-                      fontSize: responsiveFontSize(1.8),
-                      color: '#475569',
-                    }}>
-                    {data?.email}
-                  </Text>
-                </View>
+                {!newCounselor ? (
+                  // --- Active Counselor View ---
+                  <>
+                    <View style={styles.profileHeader}>
+                      <Image
+                        source={{ uri: data?.pic }}
+                        style={styles.profileImage}
+                      />
+                      <Text style={[styles.profileName, { fontSize: getAdaptiveFontSize(2.5, width) }]}>
+                        {data?.name}
+                      </Text>
+                      <Text style={[styles.profileEmail, { fontSize: getAdaptiveFontSize(1.8, width) }]}>
+                        {data?.email}
+                      </Text>
+                    </View>
 
-                {/* Info Section */}
-                <View
-                  style={{
-                    marginTop: 30,
-                    backgroundColor: '#ffffff',
-                    padding: 10,
-                    borderRadius: 20,
-                    elevation: 4,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 4,
-                  }}>
-                  <View
-                    style={{
-                      backgroundColor: '#e0f7fb',
-                      paddingVertical: 10,
-                      paddingHorizontal: 16,
-                      borderRadius: 10,
-                      marginBottom: 20,
-                    }}>
-                    <Text
-                      style={{
-                        fontFamily: 'Poppins-SemiBold',
-                        fontSize: responsiveFontSize(2.2),
-                        color: '#0ea5e9',
-                        textAlign: 'center',
-                      }}>
-                      About Counselor
-                    </Text>
-                  </View>
+                    {/* Info Card */}
+                    <View style={styles.infoCard}>
+                      <View style={styles.infoTitleContainer}>
+                        <Text style={[styles.infoTitleText, { fontSize: getAdaptiveFontSize(2.2, width) }]}>
+                          About Counselor
+                        </Text>
+                      </View>
 
-                  <InfoRow label="Age" value={data?.age} />
-                  <InfoRow label="Gender" value={data?.gender} />
-                  <InfoRow label="Role" value={data?.role} />
-                  <InfoRow
-                    label="Joined on"
-                    value={new Date(data?.createdAt).toLocaleDateString(
-                      'en-US',
-                      {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      },
-                    )}
-                  />
-                </View>
+                      <InfoRow label="Age" value={data?.age} />
+                      <InfoRow label="Gender" value={data?.gender} />
+                      <InfoRow label="Role" value={data?.role} />
+                      <InfoRow
+                        label="Joined on"
+                        value={new Date(data?.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      />
+                    </View>
 
-                {infoCounselorAdded ? (
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate('UpdateProfile')}
-                    style={{
-                      backgroundColor: '#f7fdfd',
-                      paddingVertical: 12,
-                      marginTop: 20,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                      borderColor: '#0ea5e9',
-                      borderWidth: 1,
-                      flexDirection: 'row',
-                      justifyContent: 'center',
-                    }}>
-                    <Ionicons
-                      name="create-outline"
-                      size={23}
-                      color="#0ea5e9"
-                      style={{ marginRight: 5 }}
-                    />
-
-                    <Text
-                      style={{
-                        fontFamily: 'Poppins-SemiBold',
-                        fontSize: responsiveFontSize(2),
-                        color: '#0ea5e9',
-                        letterSpacing: 1,
-                      }}>
-                      Update Profile
-                    </Text>
-                  </TouchableOpacity>
+                    {/* Action Buttons */}
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate(infoCounselorAdded ? 'UpdateProfile' : 'AddDetails')}
+                      style={styles.actionButton}
+                    >
+                      <Ionicons
+                        name={infoCounselorAdded ? "create-outline" : "document-text-outline"}
+                        size={isTablet ? 40 : 23}
+                        color="#0ea5e9"
+                        style={{ marginRight: 8 }}
+                      />
+                      <Text style={[styles.actionButtonText, { fontSize: getAdaptiveFontSize(2, width) }]}>
+                        {infoCounselorAdded ? "Update Profile" : "Add Details"}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
                 ) : (
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate('AddDetails')}
-                    style={{
-                      backgroundColor: '#f7fdfd',
-                      paddingVertical: 12,
-                      marginTop: 20,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                      borderColor: '#0ea5e9',
-                      borderWidth: 1,
-                      flexDirection: 'row',
-                      justifyContent: 'center',
-                    }}>
-                    <Ionicons
-                      name="document-text-outline"
-                      size={23}
-                      color="#0ea5e9"
-                      style={{ marginRight: 5 }}
-                    />
+                  // --- Incomplete Profile View ---
+                  <View style={styles.incompleteContainer}>
+                    <View style={styles.incompleteCard}>
+                      <Ionicons
+                        name="person-circle-outline"
+                        size={80}
+                        color="#0ea5e9"
+                        style={{ marginBottom: 16 }}
+                      />
 
-                    <Text
-                      style={{
-                        fontFamily: 'Poppins-SemiBold',
-                        fontSize: responsiveFontSize(2),
-                        color: '#0ea5e9',
-                        letterSpacing: 1,
-                      }}>
-                      Add Details
-                    </Text>
-                  </TouchableOpacity>
+                      <Text style={[styles.incompleteTitle, { fontSize: getAdaptiveFontSize(2.4, width) }]}>
+                        Complete Your Profile
+                      </Text>
+
+                      <Text style={[styles.incompleteSubtitle, { fontSize: getAdaptiveFontSize(1.8, width) }]}>
+                        Please complete your profile so users can find you and trust your valuable services.
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('CompleteProfile', { data: 2 })}
+                      style={styles.primaryButton}
+                    >
+                      <Ionicons
+                        name="add-circle-outline"
+                        size={24}
+                        color="#fff"
+                        style={{ marginRight: 8 }}
+                      />
+                      <Text style={[styles.primaryButtonText, { fontSize: getAdaptiveFontSize(2, width) }]}>
+                        Add Profile Details
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </>
-            ) : (
-              <View
-                style={{
-                  flex: 0.9,
-                  padding: 20,
-                  justifyContent: 'center',
-                }}>
-                <View
-                  style={{
-                    borderRadius: 16,
-                    padding: 24,
-                    alignItems: 'center',
-                  }}>
-                  <Ionicons
-                    name="person-circle-outline"
-                    size={60}
-                    color="#0ea5e9"
-                    style={{ marginBottom: 12 }}
-                  />
-
-                  <Text
-                    style={{
-                      fontSize: responsiveFontSize(2.4),
-                      fontFamily: 'Poppins-SemiBold',
-                      color: '#0f172a',
-                      textAlign: 'center',
-                      marginBottom: 5,
-                    }}>
-                    Complete Your Profile
-                  </Text>
-
-                  <Text
-                    style={{
-                      fontSize: responsiveFontSize(1.8),
-                      fontFamily: 'Poppins-Regular',
-                      color: '#334155',
-                      textAlign: 'center',
-                    }}>
-                    Please complete your profile so users can find you and trust
-                    your valuable services.
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  onPress={() =>
-                    navigation.navigate('CompleteProfile', { data: 2 })
-                  }
-                  style={{
-                    backgroundColor: '#0ea5e9',
-                    paddingVertical: 10,
-                    marginTop: 7,
-                    borderRadius: 13,
-                    alignItems: 'center',
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 6,
-                    elevation: 4,
-                  }}>
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={24}
-                    color="#fff"
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text
-                    style={{
-                      fontFamily: 'Poppins-SemiBold',
-                      fontSize: responsiveFontSize(2),
-                      color: '#fff',
-                      letterSpacing: 1,
-                    }}>
-                    Add Profile Details
-                  </Text>
-                </TouchableOpacity>
-              </View>
             )}
-          </>
-        )}
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </SafeAreaProvider>
   );
 };
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  menuButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 40,
+    left: 20,
+    zIndex: 10, // Ensure it's clickable above scrollview
+    backgroundColor: 'rgba(255,255,255,0.8)', // Slight background for readability
+    borderRadius: 20,
+    padding: 4,
+  },
+  scrollContainer: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 60, // Space for header/menu
+    paddingBottom: 40,
+    flexGrow: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 400,
+  },
+
+  // --- Active Counselor Styles ---
+  profileHeader: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  profileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: '#e0f7fb',
+    marginBottom: 12,
+  },
+  profileName: {
+    fontFamily: 'Poppins-SemiBold',
+    color: '#0f172a',
+    textAlign: 'center',
+  },
+  profileEmail: {
+    fontFamily: 'Poppins-Regular',
+    color: '#475569',
+    textAlign: 'center',
+  },
+  infoCard: {
+    backgroundColor: '#ffffff',
+    padding: 20,
+    borderRadius: 24,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    marginBottom: 24,
+  },
+  infoTitleContainer: {
+    backgroundColor: '#e0f7fb',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  infoTitleText: {
+    fontFamily: 'Poppins-SemiBold',
+    color: '#0ea5e9',
+    textAlign: 'center',
+  },
+  actionButton: {
+    backgroundColor: '#f7fdfd',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderColor: '#0ea5e9',
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  actionButtonText: {
+    fontFamily: 'Poppins-SemiBold',
+    includeFontPadding: false,
+    color: '#0ea5e9',
+    letterSpacing: 0.5,
+  },
+
+  // --- Incomplete Profile Styles ---
+  incompleteContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  incompleteCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  incompleteTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  incompleteSubtitle: {
+    fontFamily: 'Poppins-Regular',
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  primaryButton: {
+    backgroundColor: '#0ea5e9',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    shadowColor: '#0ea5e9',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    width: '100%',
+  },
+  primaryButtonText: {
+    fontFamily: 'Poppins-SemiBold',
+    color: '#fff',
+    letterSpacing: 0.5,
+    includeFontPadding: false,
+  },
+});
 
 export default Dashboard;
