@@ -355,8 +355,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   actionButtonText: {
-    fontFamily: 'Poppins-SemiBold',
     includeFontPadding: false,
+    fontFamily: 'Poppins-SemiBold',
     color: '#0ea5e9',
     letterSpacing: 0.5,
   },

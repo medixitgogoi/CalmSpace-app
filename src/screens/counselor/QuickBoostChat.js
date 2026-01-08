@@ -16,18 +16,38 @@ import {
   Platform,
   StyleSheet,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
-import { primary } from '../../utils/colors';
+import { primary } from '../../utils/colors'; // Ensure this path is correct
 import { useSelector } from 'react-redux';
 import { useChatStore } from '../../hooks/useChatStore';
 import moment from 'moment';
 
+// --- Constants ---
+const COLORS = {
+  bg: '#F7F9FC',
+  white: '#FFFFFF',
+  textDark: '#111827',
+  textLight: '#6B7280',
+  primary: primary || '#2563EB',
+  inputBg: '#F3F4F6',
+};
+
+// Helper for adaptive font sizing
+const getAdaptiveFontSize = (size, width) => {
+  return width > 768 ? responsiveFontSize(size * 0.7) : responsiveFontSize(size);
+};
+
 const QuickBoostChat = ({ navigation, route }) => {
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const fSize = (s) => getAdaptiveFontSize(s, width);
+
   const {
     messages,
     getMessages,
@@ -66,7 +86,6 @@ const QuickBoostChat = ({ navigation, route }) => {
     return date.format('MMMM D, YYYY');
   };
 
-  // --- 2. UPDATED formattedMessages CALCULATION ---
   const formattedMessages = useMemo(() => {
     if (!messages || messages.length === 0) return [];
     let lastDateLabel = null;
@@ -85,9 +104,7 @@ const QuickBoostChat = ({ navigation, route }) => {
     });
     return formatted;
   }, [messages]);
-  // ---------------------------------------------
 
-  // --- 3. ADDED useFocusEffect HOOK ---
   useFocusEffect(
     useCallback(() => {
       const task = setTimeout(() => {
@@ -98,7 +115,6 @@ const QuickBoostChat = ({ navigation, route }) => {
       return () => clearTimeout(task);
     }, [formattedMessages]),
   );
-  // ------------------------------------
 
   const handleSendMessage = async () => {
     if (!message.trim()) return;
@@ -110,7 +126,7 @@ const QuickBoostChat = ({ navigation, route }) => {
     if (item.type === 'header') {
       return (
         <View style={styles.dateHeaderContainer}>
-          <Text style={styles.dateHeaderText}>{item.label}</Text>
+          <Text style={[styles.dateHeaderText, { fontSize: fSize(1.5) }]}>{item.label}</Text>
         </View>
       );
     }
@@ -119,9 +135,7 @@ const QuickBoostChat = ({ navigation, route }) => {
       <View
         style={[
           styles.messageContainer,
-          isMyMessage
-            ? styles.myMessageContainer
-            : styles.theirMessageContainer,
+          isMyMessage ? styles.myMessageContainer : styles.theirMessageContainer,
         ]}>
         <View
           style={[
@@ -129,11 +143,15 @@ const QuickBoostChat = ({ navigation, route }) => {
             isMyMessage ? styles.myMessageBubble : styles.theirMessageBubble,
           ]}>
           <Text
-            style={[styles.messageText, isMyMessage && styles.myMessageText]}>
+            style={[
+              styles.messageText,
+              isMyMessage && styles.myMessageText,
+              { fontSize: fSize(1.8) }
+            ]}>
             {item.text}
           </Text>
         </View>
-        <Text style={styles.messageTime}>{formatTime(item.createdAt)}</Text>
+        <Text style={[styles.messageTime, { fontSize: fSize(1.3) }]}>{formatTime(item.createdAt)}</Text>
       </View>
     );
   };
@@ -142,25 +160,36 @@ const QuickBoostChat = ({ navigation, route }) => {
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Image source={{ uri: pic }} style={styles.avatar} />
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {name}
-            </Text>
-            <Text style={styles.headerSubtitle}>{email}</Text>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            </TouchableOpacity>
+
+            <Image
+              source={{ uri: pic }}
+              style={[styles.avatar, { width: isTablet ? 48 : 42, height: isTablet ? 48 : 42 }]}
+            />
+
+            <View style={styles.headerInfo}>
+              <Text style={[styles.headerTitle, { fontSize: fSize(2) }]} numberOfLines={1}>
+                {name}
+              </Text>
+              <Text style={[styles.headerStatus, { fontSize: fSize(1.5) }]}>Online</Text>
+            </View>
           </View>
         </View>
 
+        {/* Chat Body */}
         <KeyboardAvoidingView
           style={styles.flexGrow}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}>
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
+
           <FlatList
             ref={flatListRef}
             data={formattedMessages}
@@ -176,144 +205,193 @@ const QuickBoostChat = ({ navigation, route }) => {
             showsVerticalScrollIndicator={false}
           />
 
-          <View style={styles.inputContainer}>
-            <TextInput
-              value={message}
-              onChangeText={setMessage}
-              placeholder="Type a message..."
-              placeholderTextColor={'#888'}
-              style={styles.textInput}
-              multiline
-            />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                { backgroundColor: message.trim() ? primary : '#B0C4DE' },
-              ]}
-              onPress={handleSendMessage}
-              disabled={!message.trim()}>
-              <Feather name="send" size={20} color="#fff" />
-            </TouchableOpacity>
+          {/* Input Area */}
+          <View style={styles.inputWrapper}>
+            <View style={styles.inputRow}>
+
+              {/* Text Input */}
+              <View style={[styles.textInputContainer, { borderRadius: isTablet ? 50 : 28, paddingHorizontal: isTablet ? 30 : 16 }]}>
+                <TextInput
+                  value={message}
+                  onChangeText={setMessage}
+                  placeholder="Type a message..."
+                  placeholderTextColor={'#9CA3AF'}
+                  style={[styles.textInput, { fontSize: fSize(1.8) }]}
+                  multiline
+                />
+              </View>
+
+              {/* Send Button (Outside) */}
+              <TouchableOpacity
+                style={[
+                  styles.sendButton,
+                  { backgroundColor: message.trim() ? COLORS.primary : '#E5E7EB' },
+                ]}
+                onPress={handleSendMessage}
+                disabled={!message.trim()}>
+                <Feather name="send" size={20} color={message.trim() ? "#fff" : "#9CA3AF"} />
+              </TouchableOpacity>
+
+            </View>
           </View>
         </KeyboardAvoidingView>
+
       </SafeAreaView>
     </SafeAreaProvider>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  flexGrow: { backgroundColor: '#F7F9FC', flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  flexGrow: {
+    backgroundColor: COLORS.bg,
+    flex: 1,
+  },
+
+  // --- Header Styles ---
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: COLORS.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
+    zIndex: 10,
   },
-  headerButton: { padding: 5 },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 4,
+    borderRadius: 50,
+  },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginHorizontal: 10,
+    borderRadius: 50,
+    marginRight: 12,
+    backgroundColor: '#E5E7EB',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
-  headerInfo: { justifyContent: 'center', flex: 1 },
+  headerInfo: {
+    justifyContent: 'center',
+    flex: 1,
+  },
   headerTitle: {
-    fontSize: responsiveFontSize(2.1),
     fontFamily: 'Poppins-SemiBold',
-    color: '#111',
+    color: COLORS.textDark,
   },
-  headerSubtitle: {
-    fontSize: responsiveFontSize(1.6),
-    fontFamily: 'Poppins-Regular',
-    color: '#666',
+  headerStatus: {
+    fontFamily: 'Poppins-Medium',
+    color: '#10B981',
   },
+
+  // --- Chat List Styles ---
   chatContentContainer: {
-    paddingTop: 10,
-    paddingBottom: 5,
-    paddingHorizontal: 12,
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
     flexGrow: 1,
   },
   dateHeaderContainer: {
     alignSelf: 'center',
-    marginBottom: 10,
-    marginTop: 5,
-    paddingHorizontal: 12,
+    marginBottom: 24,
+    marginTop: 8,
+    paddingHorizontal: 16,
     paddingVertical: 6,
-    borderRadius: 15,
-    backgroundColor: '#E5E7EB',
+    borderRadius: 20,
+    backgroundColor: 'rgba(229, 231, 235, 0.6)',
   },
   dateHeaderText: {
-    fontSize: responsiveFontSize(1.5),
     fontFamily: 'Poppins-Medium',
-    color: '#4B5563',
+    color: COLORS.textLight,
   },
-  messageContainer: { marginVertical: 4 },
-  myMessageContainer: { alignItems: 'flex-end' },
-  theirMessageContainer: { alignItems: 'flex-start' },
-  messageAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
+
+  // --- Message Bubbles ---
+  messageContainer: {
+    marginVertical: 6,
+    width: '100%',
   },
+  myMessageContainer: {
+    alignItems: 'flex-end',
+  },
+  theirMessageContainer: {
+    alignItems: 'flex-start',
+  },
+
   messageBubble: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 22,
-    maxWidth: '80%',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    maxWidth: '85%',
   },
-  myMessageBubble: { backgroundColor: primary, borderBottomRightRadius: 5 },
+  myMessageBubble: {
+    backgroundColor: COLORS.primary,
+    borderBottomRightRadius: 4
+  },
   theirMessageBubble: {
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 5,
-    elevation: 1,
+    backgroundColor: COLORS.white,
+    borderBottomLeftRadius: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   messageText: {
-    fontSize: responsiveFontSize(1.8),
     fontFamily: 'Poppins-Regular',
     color: '#111',
   },
-  myMessageText: { color: '#fff' },
-  messageTime: {
-    fontSize: responsiveFontSize(1.3),
-    fontFamily: 'Poppins-Regular',
-    color: '#A0A0A0',
-    marginTop: 4,
-    marginHorizontal: 8,
+  myMessageText: {
+    color: '#fff'
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
+  messageTime: {
+    fontFamily: 'Poppins-Regular',
+    color: '#9CA3AF',
+    marginTop: 4,
+    marginHorizontal: 4,
+  },
+
+  // --- Input Styles ---
+  inputWrapper: {
+    backgroundColor: COLORS.white,
+    // backgroundColor: 'red',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8E8',
+    borderTopColor: '#F3F4F6',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center', // Changed from flex-end to center
+  },
+  textInputContainer: {
+    flex: 1,
+    backgroundColor: COLORS.inputBg,
+    paddingVertical: 8,
+    marginRight: 10,
   },
   textInput: {
-    flex: 1,
-    backgroundColor: '#F7F9FC',
-    borderRadius: 100,
-    paddingHorizontal: 22,
-    paddingVertical: Platform.OS === 'ios' ? 15 : 12,
-    fontSize: responsiveFontSize(1.8),
     fontFamily: 'Poppins-Regular',
-    color: '#111',
-    marginRight: 10,
-    maxHeight: 100,
+    color: COLORS.textDark,
+    maxHeight: 120,
+    paddingTop: Platform.OS === 'ios' ? 10 : 5,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 5,
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },

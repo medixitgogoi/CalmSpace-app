@@ -295,7 +295,7 @@ const UpdateProfile = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#fff',
   },
   centeredScreen: {
     flex: 1,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     backgroundColor: '#fff',
@@ -326,6 +326,7 @@ const styles = StyleSheet.create({
     color: '#1E293B',
   },
   scrollContainer: {
+    backgroundColor: '#F8FAFC',
     padding: 20,
     paddingBottom: responsiveHeight(12), // Extra padding for footer space
   },

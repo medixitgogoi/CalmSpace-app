@@ -9,22 +9,41 @@ import {
   StyleSheet,
   Alert,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
-import {
-  responsiveFontSize,
-  responsiveHeight,
-} from 'react-native-responsive-dimensions';
+import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { getCounselorByID } from '../../utils/getCounselorByID';
-import CounselorChat from '../../components/CounselorChat'; // Assuming this component is styled or fits well
+import CounselorChat from '../../components/CounselorChat';
 import { useFocusEffect } from '@react-navigation/native';
 
-// --- NEW MODERN UI ---
+// --- Constants ---
+const MAX_CONTENT_WIDTH = 650;
+
+const COLORS = {
+  bg: '#F1F5F9', // Slate-100
+  white: '#FFFFFF',
+  textDark: '#0F172A', // Slate-900
+  textLight: '#64748B', // Slate-500
+  primary: '#2563EB', // Blue-600
+  success: '#10B981', // Emerald-500
+  successBg: '#ECFDF5', // Emerald-50
+  offlineBg: '#E2E8F0', // Slate-200
+};
+
+// Helper for adaptive font sizing
+const getAdaptiveFontSize = (size, width) => {
+  return width > 768 ? responsiveFontSize(size * 0.7) : responsiveFontSize(size);
+};
 
 const QuickBoost = ({ navigation }) => {
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const fSize = (s) => getAdaptiveFontSize(s, width);
+
   const userDetails = useSelector(state => state.user);
   const authToken = userDetails?.authToken;
 
@@ -33,7 +52,7 @@ const QuickBoost = ({ navigation }) => {
   const [toggleLoading, setToggleLoading] = useState(false);
   const [details, setDetails] = useState(null);
 
-  // Fetch counselor data on screen focus
+  // Fetch counselor data
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
@@ -56,7 +75,7 @@ const QuickBoost = ({ navigation }) => {
     }, [authToken])
   );
 
-  // Handle toggling availability status
+  // Handle toggling availability
   const handleToggle = async (newValue) => {
     setToggleLoading(true);
     try {
@@ -79,11 +98,10 @@ const QuickBoost = ({ navigation }) => {
     }
   };
 
-
   if (loading) {
     return (
       <View style={styles.centeredScreen}>
-        <ActivityIndicator size={'large'} color={'#2563EB'} />
+        <ActivityIndicator size={'large'} color={COLORS.primary} />
       </View>
     );
   }
@@ -91,68 +109,107 @@ const QuickBoost = ({ navigation }) => {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
-        {/* Header */}
+        {/* --- Header --- */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color={'#1F2937'} />
+            <Ionicons name="arrow-back" size={24} color={COLORS.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Quick Boost</Text>
+          <Text style={[styles.headerTitle, { fontSize: fSize(2.2) }]}>Quick Boost</Text>
           <View style={{ width: 40 }} />
         </View>
 
-        {details ? (
-          <>
-            {/* Availability Toggle Card */}
-            <View style={styles.card}>
-              <View style={styles.cardTextContainer}>
-                <Text style={styles.cardTitle}>Your Availability</Text>
-                <Text style={styles.cardSubtitle}>
-                  {isAvailable ? 'You are currently online and visible to users.' : 'You are offline. Go online to receive requests.'}
+        {/* --- Main Content Area --- */}
+        <View style={{ flex: 1, alignItems: 'center', width: '100%' }}>
+          <View style={{ width: isTablet ? MAX_CONTENT_WIDTH : '100%', flex: 1 }}>
+
+            {details ? (
+              <>
+                {/* 1. Status Dashboard Card */}
+                <View style={[
+                  styles.statusCard,
+                  isAvailable ? styles.statusCardOnline : styles.statusCardOffline
+                ]}>
+                  <View style={styles.statusHeader}>
+                    <View style={[
+                      styles.iconCircle,
+                      { backgroundColor: isAvailable ? '#D1FAE5' : '#CBD5E1' }
+                    ]}>
+                      <Ionicons
+                        name={isAvailable ? "flash" : "moon"}
+                        size={24}
+                        color={isAvailable ? COLORS.success : COLORS.textLight}
+                      />
+                    </View>
+                    <View style={styles.switchWrapper}>
+                      {toggleLoading ? (
+                        <ActivityIndicator color={isAvailable ? COLORS.success : COLORS.textLight} />
+                      ) : (
+                        <Switch
+                          value={isAvailable}
+                          onValueChange={handleToggle}
+                          trackColor={{ false: '#94A3B8', true: '#6EE7B7' }}
+                          thumbColor={isAvailable ? '#10B981' : '#F1F5F9'}
+                          // ios_backgroundColor="#CBD5E1"
+                          style={{ transform: [{ scaleX: isTablet ? 1.1 : 0.9 }, { scaleY: isTablet ? 1.1 : 0.9 }] }}
+                        />
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={styles.statusTextContainer}>
+                    <Text style={[styles.statusTitle, { fontSize: fSize(2.2), color: isAvailable ? '#064E3B' : '#334155' }]}>
+                      {isAvailable ? "You're Online!" : "You're Currently Offline"}
+                    </Text>
+                    <Text style={[styles.statusSubtitle, { fontSize: fSize(1.6), color: isAvailable ? '#065F46' : '#64748B' }]}>
+                      {isAvailable
+                        ? "Great! Users can now find you for instant Quick Boost sessions."
+                        : "Go online to start receiving instant chat requests from users."}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* 2. Active Chats Section */}
+                <View style={styles.chatSectionContainer}>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="chatbubbles-outline" size={isTablet ? 35 : 20} color={COLORS.textLight} style={{ marginRight: 8 }} />
+                    <Text style={[styles.sectionTitle, { fontSize: fSize(1.8) }]}>
+                      Recent Conversations
+                    </Text>
+                  </View>
+
+                  {/* Chat List Area */}
+                  <View style={styles.chatListWrapper}>
+                    <CounselorChat navigation={navigation} />
+                  </View>
+                </View>
+              </>
+            ) : (
+              // --- No Profile State ---
+              <View style={styles.emptyStateContainer}>
+                <View style={styles.emptyStateIconWrapper}>
+                  <Ionicons name="person-add-outline" size={isTablet ? 60 : 50} color={COLORS.primary} />
+                </View>
+                <Text style={[styles.emptyTitle, { fontSize: fSize(2.4) }]}>Setup Your Profile</Text>
+                <Text style={[styles.emptySubtitle, { fontSize: fSize(1.8) }]}>
+                  To access Quick Boost and start helping users, you need to complete your counselor profile first.
                 </Text>
-              </View>
-              <View style={styles.switchContainer}>
-                {toggleLoading ? (
-                  <ActivityIndicator color={isAvailable ? "#16A34A" : "#6B7280"} />
-                ) : (
-                  <Switch
-                    value={isAvailable}
-                    onValueChange={handleToggle}
-                    trackColor={{ false: '#D1D5DB', true: '#6EE7B7' }}
-                    thumbColor={isAvailable ? '#16A34A' : '#F9FAFB'}
-                    ios_backgroundColor="#D1D5DB"
-                  />
-                )}
-              </View>
-            </View>
 
-            {/* Divider */}
-            <View style={styles.dividerContainer}>
-              <View style={styles.divider} />
-              <Text style={styles.dividerText}>Active Chats</Text>
-              <View style={styles.divider} />
-            </View>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AddDetails')}
+                  style={styles.ctaButton}
+                  activeOpacity={0.9}
+                >
+                  <Text style={[styles.ctaButtonText, { fontSize: fSize(2) }]}>Create Profile Now</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#FFF" style={{ marginLeft: 8 }} />
+                </TouchableOpacity>
+              </View>
+            )}
 
-            {/* Counselor Chat List */}
-            <CounselorChat navigation={navigation} />
-          </>
-        ) : (
-          // Prompt to Add Details
-          <View style={[styles.centeredScreen, { paddingHorizontal: 20 }]}>
-            <Ionicons name="document-text-outline" size={80} color="#F59E0B" />
-            <Text style={styles.noticeTitle}>Profile Not Found</Text>
-            <Text style={styles.noticeText}>
-              Please create your counselor profile to access the Quick Boost feature and connect with users.
-            </Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('AddDetails')}
-              style={styles.addDetailsButton}>
-              <Ionicons name="add-circle-outline" size={22} color="#fff" />
-              <Text style={styles.addDetailsButtonText}>Create Profile</Text>
-            </TouchableOpacity>
           </View>
-        )}
+        </View>
+
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -161,114 +218,164 @@ const QuickBoost = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.bg,
   },
   centeredScreen: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.bg,
   },
+  // --- Header ---
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 10 : 5,
-    backgroundColor: '#F9FAFB',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+    backgroundColor: COLORS.bg,
   },
   backButton: {
-    padding: 5,
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: COLORS.white,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   headerTitle: {
-    fontSize: responsiveFontSize(2.4),
     fontFamily: 'Poppins-Bold',
-    color: '#1F2937',
+    color: COLORS.textDark,
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    margin: 16,
-    padding: Platform.OS === 'ios' ? 20 : 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+
+  // --- Status Card ---
+  statusCard: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 24,
+    padding: 24,
+    // Modern Shadow
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     elevation: 4,
-    shadowColor: '#1F2937',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderWidth: 1,
   },
-  cardTextContainer: {
-    flex: 1,
-    marginRight: 15,
+  statusCardOnline: {
+    backgroundColor: COLORS.successBg,
+    borderColor: '#A7F3D0',
   },
-  cardTitle: {
-    fontSize: responsiveFontSize(2.1),
-    fontFamily: 'Poppins-SemiBold',
-    color: '#111827',
+  statusCardOffline: {
+    backgroundColor: COLORS.white,
+    borderColor: '#E2E8F0',
   },
-  cardSubtitle: {
-    fontSize: responsiveFontSize(1.6),
-    fontFamily: 'Poppins-Regular',
-    color: '#4B5563',
-    marginTop: 4,
+  statusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  switchContainer: {
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 10,
+  statusTextContainer: {
+    gap: 4,
   },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  dividerText: {
-    marginHorizontal: 15,
-    fontSize: responsiveFontSize(1.8),
-    fontFamily: 'Poppins-Medium',
-    color: '#6B7280',
-  },
-  // --- Notice Screen Styles ---
-  noticeTitle: {
-    fontSize: responsiveFontSize(2.5),
+  statusTitle: {
     fontFamily: 'Poppins-Bold',
-    color: '#1F2937',
-    textAlign: 'center',
-    marginTop: 16,
   },
-  noticeText: {
-    fontSize: responsiveFontSize(2),
-    color: '#4B5563',
-    textAlign: 'center',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 8,
-    marginBottom: 24,
-    lineHeight: 24,
+  statusSubtitle: {
+    fontFamily: 'Poppins-Medium',
   },
-  addDetailsButton: {
-    backgroundColor: '#2563EB',
-    paddingVertical: 14,
-    paddingHorizontal: 30,
-    borderRadius: 14,
+
+  // --- Chat Section ---
+  chatSectionContainer: {
+    flex: 1,
+    marginTop: 24,
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    // Subtle shadow for the bottom sheet effect
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 5,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
+    marginBottom: 16,
+    paddingHorizontal: 5,
   },
-  addDetailsButtonText: {
-    fontSize: responsiveFontSize(2),
-    color: '#fff',
+  sectionTitle: {
     fontFamily: 'Poppins-SemiBold',
-    marginLeft: 10,
+    color: COLORS.textLight,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    includeFontPadding: false,
+  },
+  chatListWrapper: {
+    flex: 1,
+    // backgroundColor: 'red',
+    paddingBottom: 20, // Space at bottom
+    // paddingHorizontal: 20
+  },
+
+  // --- Empty State ---
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    marginTop: -40, // Visual adjustment
+  },
+  emptyStateIconWrapper: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#DBEAFE', // Light Blue
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  emptyTitle: {
+    fontFamily: 'Poppins-Bold',
+    color: COLORS.textDark,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  emptySubtitle: {
+    fontFamily: 'Poppins-Regular',
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  ctaButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  ctaButtonText: {
+    fontFamily: 'Poppins-SemiBold',
+    color: COLORS.white,
   },
 });
 

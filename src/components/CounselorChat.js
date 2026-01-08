@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Pressable,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
 import { useSelector } from 'react-redux';
@@ -16,9 +17,27 @@ import { getOnlineUsers } from '../utils/getOnlineUsers';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-// --- NEW MODERN UI ---
+// --- Constants & Helpers ---
+const MAX_CONTENT_WIDTH = 600;
+const COLORS = {
+  bg: '#F1F5F9', // Slate-100 (matching parent)
+  white: '#FFFFFF',
+  textDark: '#0F172A',
+  textLight: '#64748B',
+  primary: '#2563EB',
+  border: '#E2E8F0',
+};
+
+// Helper for adaptive font sizing
+const getAdaptiveFontSize = (size, width) => {
+  return width > 768 ? responsiveFontSize(size * 0.7) : responsiveFontSize(size);
+};
 
 const CounselorChat = ({ navigation }) => {
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const fSize = (s) => getAdaptiveFontSize(s, width);
+
   const userDetails = useSelector(state => state.user);
   const authToken = userDetails?.authToken;
 
@@ -36,7 +55,6 @@ const CounselorChat = ({ navigation }) => {
       setUsers(data || []);
     } catch (error) {
       console.log('Error fetching users: ', error);
-      // Optionally, show an alert to the user
     } finally {
       if (!isRefresh) setLoading(false);
       else setRefreshing(false);
@@ -61,23 +79,27 @@ const CounselorChat = ({ navigation }) => {
       style={({ pressed }) => [styles.chatItem, pressed && styles.chatItemPressed]}
       onPress={() => navigation.navigate('QuickBoostChat', { id: item?._id, name: item?.name, pic: item?.pic, email: item?.email })}>
       <Image
-        source={{ uri: item?.pic || 'https://i.pravatar.cc/150' }} // Fallback avatar
-        style={styles.avatar}
+        source={{ uri: item?.pic || 'https://i.pravatar.cc/150' }}
+        style={[styles.avatar, { width: isTablet ? 48 : 40, height: isTablet ? 48 : 40, borderRadius: isTablet ? 24 : 20 }]}
       />
       <View style={styles.chatTextContainer}>
-        <Text style={styles.userName}>{item.name}</Text>
-        <Text style={styles.userStatus}>Waiting for you...</Text>
+        <Text style={[styles.userName, { fontSize: fSize(1.8) }]}>{item.name}</Text>
+        <Text style={[styles.userStatus, { fontSize: fSize(1.4) }]}>Waiting for you...</Text>
       </View>
-      <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
+      <View style={styles.actionIcon}>
+        <Ionicons name="chatbubble-ellipses-outline" size={isTablet ? 24 : 22} color={COLORS.primary} />
+      </View>
     </Pressable>
   );
 
   // Render when the list is empty
   const renderEmptyListComponent = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="chatbubbles-outline" size={70} color="#D1D5DB" />
-      <Text style={styles.emptyTextTitle}>No Active Chats</Text>
-      <Text style={styles.emptyTextSubtitle}>
+    <View style={[styles.emptyContainer, { minHeight: isTablet ? 300 : 200 }]}>
+      <View style={styles.emptyIconWrapper}>
+        <Ionicons name="chatbubbles-outline" size={isTablet ? 60 : 50} color="#CBD5E1" />
+      </View>
+      <Text style={[styles.emptyTextTitle, { fontSize: fSize(2.2) }]}>No Active Chats</Text>
+      <Text style={[styles.emptyTextSubtitle, { fontSize: fSize(1.6) }]}>
         Users who are online and need a Quick Boost will appear here.
       </Text>
     </View>
@@ -86,29 +108,32 @@ const CounselorChat = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={users}
-        keyExtractor={(item) => item._id}
-        renderItem={renderChatItem}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={renderEmptyListComponent}
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#3B82F6']} // For Android
-            tintColor="#3B82F6" // For iOS
-          />
-        }
-      />
+      {/* Centered list container for Tablets */}
+      <View style={{ flex: 1, width: isTablet ? MAX_CONTENT_WIDTH : '100%', alignSelf: 'center' }}>
+        <FlatList
+          data={users}
+          keyExtractor={(item) => item._id}
+          renderItem={renderChatItem}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={renderEmptyListComponent}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 5, paddingBottom: 20 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        />
+      </View>
     </View>
   );
 };
@@ -116,66 +141,85 @@ const CounselorChat = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB', // A clean, light background
+    backgroundColor: '#FFFFFF', // Clean white background for the list area
   },
   centeredContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
+    minHeight: 200,
   },
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    padding: 10,
-    borderRadius: 14,
+    padding: 12, // Increased padding
+    borderRadius: 16, // More rounded
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F1F5F9', // Very subtle border
+    // Soft Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
   },
   chatItemPressed: {
-    backgroundColor: '#F3F4F6', // Visual feedback on press
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 25,
-    marginRight: 12,
+    marginRight: 14,
+    backgroundColor: '#E2E8F0',
   },
   chatTextContainer: {
     flex: 1,
+    justifyContent: 'center',
   },
   userName: {
-    fontSize: responsiveFontSize(1.8),
     fontFamily: 'Poppins-SemiBold',
-    color: '#1F2937',
+    color: COLORS.textDark,
   },
   userStatus: {
-    fontSize: responsiveFontSize(1.4),
-    fontFamily: 'Poppins-Regular',
-    color: '#6B7280',
+    fontFamily: 'Poppins-Medium',
+    color: COLORS.primary, // Make status pop a bit more
     marginTop: 2,
   },
+  actionIcon: {
+    padding: 8,
+    backgroundColor: '#EFF6FF', // Light blue bg
+    borderRadius: 10,
+  },
+  // --- Empty State Styles ---
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginTop: -50, // Adjust to center vertically
+    marginTop: 20,
+  },
+  emptyIconWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   emptyTextTitle: {
-    fontSize: responsiveFontSize(2.2),
     fontFamily: 'Poppins-Bold',
-    color: '#4B5563',
-    marginTop: 16,
+    color: COLORS.textDark,
+    textAlign: 'center',
   },
   emptyTextSubtitle: {
-    fontSize: responsiveFontSize(1.8),
     fontFamily: 'Poppins-Regular',
-    color: '#9CA3AF',
+    color: COLORS.textLight,
     textAlign: 'center',
     marginTop: 8,
+    maxWidth: 300,
   },
 });
 
