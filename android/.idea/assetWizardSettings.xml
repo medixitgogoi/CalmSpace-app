@@ -91,8 +91,8 @@
                                             <option name="values">
                                               <map>
                                                 <entry key="color" value="000000" />
-                                                <entry key="imagePath" value="$PROJECT_DIR$/../src/assets/logo.png" />
-                                                <entry key="scalingPercent" value="53" />
+                                                <entry key="imagePath" value="$USER_HOME$/Downloads/logoback_noName-removebg-preview.png" />
+                                                <entry key="scalingPercent" value="60" />
                                               </map>
                                             </option>
                                           </PersistentState>
@@ -125,7 +125,7 @@
                                   <option name="values">
                                     <map>
                                       <entry key="backgroundAssetType" value="COLOR" />
-                                      <entry key="backgroundColor" value="09aeb5" />
+                                      <entry key="backgroundColor" value="0f9497" />
                                     </map>
                                   </option>
                                 </PersistentState>

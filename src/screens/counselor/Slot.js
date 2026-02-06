@@ -12,6 +12,7 @@ import {
   ToastAndroid,
   Platform,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
@@ -27,10 +28,26 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCounselorByID } from '../../utils/getCounselorByID';
 import { background } from '../../utils/colors';
 
-// --- NEW MODERN UI ---
+// --- Constants ---
+const COLORS = {
+  primary: '#4A90E2',
+  bg: '#F4F7FC',
+  textDark: '#1A202C',
+  textLight: '#7A8599',
+  white: '#FFFFFF',
+  border: '#E2E8F0',
+};
+
+// Helper for adaptive font sizing
+const getAdaptiveFontSize = (size, width) => {
+  return width > 768 ? responsiveFontSize(size * 0.6) : responsiveFontSize(size);
+};
 
 const Slot = () => {
   const navigation = useNavigation();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const fSize = (s) => getAdaptiveFontSize(s, width);
 
   const userDetails = useSelector(state => state.user);
   const authToken = userDetails?.authToken;
@@ -43,10 +60,9 @@ const Slot = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // Get tomorrow's date in YYYY-MM-DD
+  // Get tomorrow's date
   const tomorrow = moment().add(1, 'days').format('YYYY-MM-DD');
 
-  // getCounselorByID
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
@@ -72,7 +88,7 @@ const Slot = () => {
   });
 
   useEffect(() => {
-    setSelectedDate(tomorrow); // default select tomorrow
+    setSelectedDate(tomorrow);
   }, []);
 
   const toggleTimeSlot = time => {
@@ -83,20 +99,17 @@ const Slot = () => {
 
   const confirmBooking = async () => {
     if (!meetLink.trim() || selectedTimes.length === 0) {
-      ToastAndroid.showWithGravity(
-        'Please provide a meeting link and select at least one time slot.',
-        ToastAndroid.LONG,
-        ToastAndroid.CENTER,
-      );
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Please provide a meeting link and select a time slot.', ToastAndroid.LONG);
+      } else {
+        Alert.alert('Missing Information', 'Please provide a meeting link and select at least one time slot.');
+      }
       return;
     }
 
     try {
       setLoading(true);
-
-      const formattedDate = moment(selectedDate).format(
-        'YYYY-MM-DDT00:00:00.000[Z]',
-      );
+      const formattedDate = moment(selectedDate).format('YYYY-MM-DDT00:00:00.000[Z]');
       const formattedTimes = selectedTimes.map(slot => slot.split(' - ')[0]);
 
       const data = {
@@ -105,59 +118,27 @@ const Slot = () => {
         meetLink: meetLink.trim(),
       };
 
-      console.log('scheduleTimes: ', formattedTimes);
-
       const response = await axios.post('/counselor/set-availabilty', data, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: authToken,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: authToken },
       });
 
-      console.log('post response: ', response);
-
       if (response?.data?.status_code === 201) {
-        // This function will now handle showing the message on both platforms
-        const showSuccessMessage = () => {
-          if (Platform.OS === 'android') {
-            ToastAndroid.show(
-              'Your availability has been set successfully! ✅',
-              ToastAndroid.SHORT,
-            );
-            // On Android, Toast is non-blocking, so we can navigate immediately
-            navigation.navigate('Dashboard');
-          } else {
-            // For iOS (and other platforms), use the blocking Alert
-            Alert.alert(
-              'Success!', // The title of the alert
-              'Your availability has been set successfully. ✅', // The message
-              [
-                {
-                  text: 'OK',
-                  // Navigate only after the user presses "OK"
-                  onPress: () => navigation.navigate('Dashboard'),
-                },
-              ],
-              { cancelable: false } // User must interact with the alert
-            );
-          }
-        };
-
-        showSuccessMessage();
-
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Availability set successfully! ✅', ToastAndroid.SHORT);
+          navigation.navigate('Dashboard');
+        } else {
+          Alert.alert('Success!', 'Your availability has been set successfully. ✅', [
+            { text: 'OK', onPress: () => navigation.navigate('Dashboard') },
+          ], { cancelable: false });
+        }
       } else {
-        ToastAndroid.showWithGravityAndOffset(
-          `${response?.data?.message}`,
-          ToastAndroid.LONG,
-          ToastAndroid.TOP,
-          0,
-          40,
-        );
+        const msg = response?.data?.message || 'Error occurred';
+        Platform.OS === 'android' ? ToastAndroid.show(msg, ToastAndroid.LONG) : Alert.alert('Error', msg);
       }
     }
     catch (error) {
-      console.log('Slot booking error: ', error?.message || error);
-      ToastAndroid.show('An error occurred. Please try again.', ToastAndroid.LONG);
+      console.log('Slot booking error: ', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -166,7 +147,7 @@ const Slot = () => {
   if (initialLoading) {
     return (
       <View style={styles.centeredScreen}>
-        <ActivityIndicator size="large" color="#4A90E2" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
@@ -174,17 +155,15 @@ const Slot = () => {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F4F7FC" />
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}>
-            <Ionicons name="chevron-back" size={20} color={'#1A202C'} />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color={COLORS.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Set Your Availability</Text>
-          <View style={{ width: 35 }} />
+          <Text style={[styles.headerTitle, { fontSize: fSize(2.4) }]}>Set Availability</Text>
+          <View style={{ width: 40 }} />
         </View>
 
         {!initialLoading && details ? (
@@ -192,106 +171,125 @@ const Slot = () => {
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollViewContent}>
-              {/* Meeting Link */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  <Ionicons name="link-outline" size={responsiveFontSize(2.2)} color="#4A90E2" />  Meeting Link
-                </Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="videocam-outline" style={styles.inputIcon} size={22} color="#7A8599" />
-                  <TextInput
-                    placeholder="Enter Google Meet link"
-                    placeholderTextColor={'#7A8599'}
-                    onChangeText={setMeetLink}
-                    value={meetLink}
-                    style={styles.textInput}
-                    keyboardType="url"
-                    autoCapitalize="none"
-                  />
-                </View>
-              </View>
 
-              {/* Date Selection */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  <Ionicons name="calendar-outline" size={responsiveFontSize(2.2)} color="#4A90E2" />  Select Date
-                </Text>
-                <View style={styles.calendarContainer}>
-                  <Calendar
-                    current={tomorrow}
-                    markedDates={{
-                      [selectedDate]: {
-                        selected: true,
-                        disableTouchEvent: true,
-                        selectedColor: '#4A90E2',
-                        selectedTextColor: '#FFFFFF',
-                      },
-                    }}
-                    minDate={tomorrow}
-                    maxDate={tomorrow}
-                    onDayPress={day => {
-                      if (day.dateString === tomorrow) setSelectedDate(day.dateString);
-                    }}
-                    disableAllTouchEventsForDisabledDays
-                    theme={{
-                      backgroundColor: '#FFFFFF',
-                      calendarBackground: '#FFFFFF',
-                      textSectionTitleColor: '#2d4150',
-                      selectedDayBackgroundColor: '#4A90E2',
-                      selectedDayTextColor: '#ffffff',
-                      todayTextColor: '#4A90E2',
-                      dayTextColor: '#2d4150',
-                      textDisabledColor: '#d9e1e8',
-                      arrowColor: '#4A90E2',
-                      monthTextColor: '#1A202C',
-                      indicatorColor: 'blue',
-                      textDayFontFamily: 'Poppins-Medium',
-                      textMonthFontFamily: 'Poppins-Bold',
-                      textDayHeaderFontFamily: 'Poppins-SemiBold',
-                      textDayFontSize: responsiveFontSize(1.8),
-                      textMonthFontSize: responsiveFontSize(2.2),
-                      textDayHeaderFontSize: responsiveFontSize(1.6),
-                    }}
-                  />
-                </View>
-              </View>
+              {/* Full Width Container */}
+              <View style={{ width: '100%' }}>
 
-              {/* Time Slot Selection */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  <Ionicons name="time-outline" size={responsiveFontSize(2.2)} color="#4A90E2" /> Select Time Slots
-                </Text>
-                <FlatList
-                  data={timeSlots}
-                  keyExtractor={item => item}
-                  numColumns={2}
-                  scrollEnabled={false}
-                  contentContainerStyle={styles.slotListContainer}
-                  renderItem={({ item }) => {
-                    const isSelected = selectedTimes.includes(item);
-                    return (
-                      <TouchableOpacity
-                        style={[styles.slot, isSelected && styles.selectedSlot]}
-                        onPress={() => toggleTimeSlot(item)}>
-                        <Text style={[styles.slotText, isSelected && styles.selectedSlotText]}>
-                          {item}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  }}
-                />
+                {/* Meeting Link */}
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle, { fontSize: fSize(2.2) }]}>
+                    <Ionicons name="link-outline" size={fSize(2.2)} color={COLORS.primary} />  Meeting Link
+                  </Text>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="videocam-outline" style={styles.inputIcon} size={22} color={COLORS.textLight} />
+                    <TextInput
+                      placeholder="Enter Google Meet link"
+                      placeholderTextColor={COLORS.textLight}
+                      onChangeText={setMeetLink}
+                      value={meetLink}
+                      style={[styles.textInput, { fontSize: fSize(1.9) }]}
+                      keyboardType="url"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </View>
+
+                {/* Date Selection */}
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle, { fontSize: fSize(2.2) }]}>
+                    <Ionicons name="calendar-outline" size={fSize(2.2)} color={COLORS.primary} />  Select Date
+                  </Text>
+                  <View style={styles.calendarContainer}>
+                    <Calendar
+                      current={tomorrow}
+                      markedDates={{
+                        [selectedDate]: {
+                          selected: true,
+                          disableTouchEvent: true,
+                          selectedColor: COLORS.primary,
+                          selectedTextColor: '#FFFFFF',
+                        },
+                      }}
+                      minDate={tomorrow}
+                      maxDate={tomorrow}
+                      onDayPress={day => {
+                        if (day.dateString === tomorrow) setSelectedDate(day.dateString);
+                      }}
+                      disableAllTouchEventsForDisabledDays
+                      theme={{
+                        backgroundColor: '#FFFFFF',
+                        calendarBackground: '#FFFFFF',
+                        textSectionTitleColor: '#2d4150',
+                        selectedDayBackgroundColor: COLORS.primary,
+                        selectedDayTextColor: '#ffffff',
+                        todayTextColor: COLORS.primary,
+                        dayTextColor: '#2d4150',
+                        textDisabledColor: '#d9e1e8',
+                        arrowColor: COLORS.primary,
+                        monthTextColor: COLORS.textDark,
+                        indicatorColor: 'blue',
+                        textDayFontFamily: 'Poppins-Medium',
+                        textMonthFontFamily: 'Poppins-Bold',
+                        textDayHeaderFontFamily: 'Poppins-SemiBold',
+                        textDayFontSize: fSize(1.8),
+                        textMonthFontSize: fSize(2.2),
+                        textDayHeaderFontSize: fSize(1.6),
+                      }}
+                    />
+                  </View>
+                </View>
+
+                {/* Time Slot Selection */}
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle, { fontSize: fSize(2.2) }]}>
+                    <Ionicons name="time-outline" size={fSize(2.2)} color={COLORS.primary} /> Select Time Slots
+                  </Text>
+
+                  <View style={styles.slotGrid}>
+                    {timeSlots.map((item) => {
+                      const isSelected = selectedTimes.includes(item);
+                      return (
+                        <TouchableOpacity
+                          key={item}
+                          style={[
+                            styles.slot,
+                            isSelected && styles.selectedSlot,
+                            // On tablets use 3 columns (approx 32%), on phones use 2 (approx 47%)
+                            { width: isTablet ? '32%' : '47%' }
+                          ]}
+                          onPress={() => toggleTimeSlot(item)}>
+                          <Text style={[
+                            styles.slotText,
+                            isSelected && styles.selectedSlotText,
+                            { fontSize: fSize(1.8) }
+                          ]}>
+                            {item}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
               </View>
             </ScrollView>
+
             {/* --- Footer Button --- */}
             <View style={styles.footer}>
               <TouchableOpacity
                 onPress={confirmBooking}
                 disabled={loading || !meetLink.trim() || selectedTimes.length === 0}
-                style={[styles.confirmButton, (loading || !meetLink.trim() || selectedTimes.length === 0) && styles.disabledButton]}>
+                style={[
+                  styles.confirmButton,
+                  (loading || !meetLink.trim() || selectedTimes.length === 0) && styles.disabledButton,
+                  // Keep full width logic for the button as well
+                  { width: '100%', alignSelf: 'center' }
+                ]}
+              >
                 {loading ? (
                   <ActivityIndicator color="#FFF" size="small" />
                 ) : (
-                  <Text style={styles.confirmButtonText}>
+                  <Text style={[styles.confirmButtonText, { fontSize: fSize(2.1) }]}>
                     Confirm Availability
                   </Text>
                 )}
@@ -300,15 +298,15 @@ const Slot = () => {
           </>
         ) : (
           <View style={styles.centeredScreen}>
-            <Ionicons name="information-circle-outline" size={80} color="#FF6B6B" />
-            <Text style={styles.noticeText}>
+            <Ionicons name="information-circle-outline" size={isTablet ? 100 : 80} color="#FF6B6B" />
+            <Text style={[styles.noticeText, { fontSize: fSize(2) }]}>
               Please complete your profile before setting your availability.
             </Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('AddDetails')}
               style={styles.addDetailsButton}>
               <Ionicons name="person-add-outline" size={22} color="#fff" />
-              <Text style={styles.addDetailsButtonText}>
+              <Text style={[styles.addDetailsButtonText, { fontSize: fSize(2) }]}>
                 Go to Profile
               </Text>
             </TouchableOpacity>
@@ -322,116 +320,118 @@ const Slot = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: background,
+    backgroundColor: COLORS.bg,
   },
   centeredScreen: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F4F7FC',
+    backgroundColor: COLORS.bg,
     paddingHorizontal: 20,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingBottom: 10,
-    backgroundColor: '#fff',
-    paddingTop: 3,
-    borderBottomColor: '#999',
-    borderBottomWidth: 0.2
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
   backButton: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 18,
-    backgroundColor: '#FFF',
-    elevation: 1,
+    padding: 8,
   },
   headerTitle: {
-    fontSize: responsiveFontSize(2.4),
     fontFamily: 'Poppins-Bold',
-    color: '#1A202C',
+    color: COLORS.textDark,
   },
   scrollViewContent: {
     paddingHorizontal: 20,
-    paddingBottom: responsiveHeight(12), // Space for the footer
-    paddingTop: 20
+    paddingBottom: 100,
+    paddingTop: 24,
   },
   section: {
-    marginBottom: 25,
+    marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: responsiveFontSize(2.2),
     fontFamily: 'Poppins-SemiBold',
-    color: '#1A202C',
-    marginBottom: 15,
+    color: COLORS.textDark,
+    marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    height: responsiveHeight(7),
-    paddingHorizontal: 15,
-    elevation: 2,
-    shadowColor: '#4A90E2',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 4,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   inputIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   textInput: {
     flex: 1,
-    fontSize: responsiveFontSize(1.9),
     fontFamily: 'Poppins-Medium',
-    color: '#1A202C',
+    color: COLORS.textDark,
     height: '100%',
+    minHeight: 45,
   },
   calendarContainer: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     elevation: 2,
-    shadowColor: '#4A90E2',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    backgroundColor: '#FFFFFF',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
   },
-  slotListContainer: {
-    marginTop: 5,
+  slotGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: 12,
   },
   slot: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    margin: 6,
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    paddingVertical: 14,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    minHeight: responsiveHeight(7),
+    borderColor: COLORS.border,
+    minHeight: 55,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   selectedSlot: {
-    backgroundColor: '#4A90E2',
-    borderColor: '#4A90E2',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
     elevation: 3,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.3,
   },
   slotText: {
-    fontSize: responsiveFontSize(1.8),
-    color: '#2D3748',
+    color: COLORS.textDark,
     fontFamily: 'Poppins-Medium',
   },
   selectedSlotText: {
-    color: '#FFFFFF',
+    color: COLORS.white,
     fontFamily: 'Poppins-Bold',
   },
   footer: {
@@ -439,51 +439,56 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 20,
-    backgroundColor: '#F4F7FC',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 16,
+    backgroundColor: COLORS.bg,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0'
+    borderTopColor: COLORS.border,
   },
   confirmButton: {
-    backgroundColor: '#4A90E2',
-    height: responsiveHeight(7),
+    backgroundColor: COLORS.primary,
+    height: 56,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    elevation: 2,
+    elevation: 4,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
   },
   disabledButton: {
-    backgroundColor: '#A0AEC0',
+    backgroundColor: '#CBD5E1',
     elevation: 0,
+    shadowOpacity: 0,
   },
   confirmButtonText: {
-    color: '#fff',
-    fontSize: responsiveFontSize(2.1),
+    color: COLORS.white,
     fontFamily: 'Poppins-Bold',
   },
   noticeText: {
-    fontSize: responsiveFontSize(2),
-    color: '#2D3748',
+    color: COLORS.textDark,
     textAlign: 'center',
     fontFamily: 'Poppins-Medium',
     marginTop: 20,
-    marginBottom: 25,
-    lineHeight: 28
+    marginBottom: 30,
+    maxWidth: 400,
+    lineHeight: 28,
   },
   addDetailsButton: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: COLORS.primary,
     paddingVertical: 14,
-    paddingHorizontal: 30,
-    borderRadius: 14,
+    paddingHorizontal: 32,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 2,
+    elevation: 3,
   },
   addDetailsButtonText: {
-    fontSize: responsiveFontSize(2),
-    color: '#fff',
+    color: COLORS.white,
     fontFamily: 'Poppins-SemiBold',
     marginLeft: 10,
   },

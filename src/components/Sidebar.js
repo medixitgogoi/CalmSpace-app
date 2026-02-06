@@ -245,6 +245,7 @@ const styles = StyleSheet.create({
     marginLeft: 15,
     fontFamily: 'Poppins-SemiBold',
     color: '#374151',
+    includeFontPadding: false,
   },
   footer: {
     padding: 15,
