@@ -76,12 +76,17 @@ yarn-error.log
 
 /.env
 
-# C++ / NDK Build Artifacts
-android/.cxx/
+# Android build artifacts
+android/app/build/
+android/.gradle/
 android/app/.cxx/
-android/app/src/main/jniLibs/
-android/app/src/main/obj/
-**/compile_commands.json
-*.cmake
+android/app/.externalNativeBuild/
+*.so
 *.o
-*.a
+*.cmake
+compile_commands.json
+
+# iOS build artifacts
+ios/build/
+ios/DerivedData/
+ios/Pods/
