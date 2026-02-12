@@ -519,4 +519,5 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(1.7),
   },
 });
+
 export default BoostChat;

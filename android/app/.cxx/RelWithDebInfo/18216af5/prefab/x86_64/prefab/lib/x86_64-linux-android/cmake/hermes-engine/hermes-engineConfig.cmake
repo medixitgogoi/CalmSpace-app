@@ -1,9 +1,0 @@
-if(NOT TARGET hermes-engine::libhermes)
-add_library(hermes-engine::libhermes SHARED IMPORTED)
-set_target_properties(hermes-engine::libhermes PROPERTIES
-    IMPORTED_LOCATION "/Volumes/DevDrive/Android/gradle_cache/caches/8.10.2/transforms/de86646594990f1544815863003b075e/transformed/hermes-android-0.78.2-release/prefab/modules/libhermes/libs/android.x86_64/libhermes.so"
-    INTERFACE_INCLUDE_DIRECTORIES "/Volumes/DevDrive/Android/gradle_cache/caches/8.10.2/transforms/de86646594990f1544815863003b075e/transformed/hermes-android-0.78.2-release/prefab/modules/libhermes/include"
-    INTERFACE_LINK_LIBRARIES ""
-)
-endif()
-
