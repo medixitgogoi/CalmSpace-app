@@ -129,9 +129,9 @@ const BoostChat = ({ navigation, route }) => {
 
   // const { id, name, pic, expiredAt, sessionNumber } = route.params;
   // Test Data
-  const id = "668bf83f4dff15c7125a153f";
-  const name = "Radhika Juneja";
-  const expiredAt = "21/02/2026, 18:00:00";
+  const id = "668bf6d44dff15c7125a151f";
+  const name = "Yukta Saksena";
+  const expiredAt = "21/02/2026, 10:00:00";
   const pic = "https://res.cloudinary.com/dpgjafewx/image/upload/v1720517538/mmmg2pdwj09rw2xcdhuo.jpg";
   const sessionNumber = 1;
 
@@ -239,9 +239,9 @@ const BoostChat = ({ navigation, route }) => {
 
               console.log('Block User Response: ', response);
 
-              if (response.data.status_code === 201) {
+              if (response?.data?.status_code === 201) {
                 Alert.alert("Blocked", "This user has been blocked.");
-                navigation.navigate('Boost');
+                navigation.navigate('Main', { screen: 'Boost' });
               }
             } catch (error) {
               console.log('Blocking failed: ', error);
@@ -250,10 +250,6 @@ const BoostChat = ({ navigation, route }) => {
         }
       ]
     );
-  };
-
-  const handleUnblockUser = async () => {
-
   };
 
   const handleExtendPress = () => {
@@ -410,7 +406,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
   },
   menuItem: { flexDirection: 'row', alignItems: 'center', padding: 15 },
-  menuItemText: { fontSize: responsiveFontSize(1.8), fontFamily: 'Poppins-Medium', color: '#DC2626', marginLeft: 10 },
+  menuItemText: { fontSize: responsiveFontSize(1.8), fontFamily: 'Poppins-Medium', color: '#DC2626', marginLeft: 10, includeFontPadding: false },
   chatContentContainer: { paddingTop: 10, paddingBottom: 5, paddingHorizontal: 12, flexGrow: 1 },
   dateHeaderContainer: { alignSelf: 'center', marginVertical: 10, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15, backgroundColor: '#E5E7EB' },
   dateHeaderText: { fontSize: responsiveFontSize(1.5), fontFamily: 'Poppins-Medium', color: '#4B5563' },

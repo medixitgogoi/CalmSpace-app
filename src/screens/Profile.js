@@ -372,6 +372,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.9),
     color: '#1A1A1A',
+    includeFontPadding: false,
   },
   separator: {
     height: 1,
