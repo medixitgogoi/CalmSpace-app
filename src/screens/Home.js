@@ -514,6 +514,7 @@ const styles = StyleSheet.create({
     color: primary,
     fontSize: responsiveFontSize(2.5),
     fontFamily: 'Poppins-SemiBold',
+    includeFontPadding: false,
   },
   searchBarContainer: {
     position: 'absolute',
@@ -539,6 +540,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: responsiveFontSize(1.7),
     color: '#6c757d',
+    includeFontPadding: false,
   },
   headerContainer: {
     flexDirection: 'row',

@@ -37,6 +37,7 @@ import BoostPayment from '../screens/BoostPayment';
 import MeetPaymentScreen from '../screens/MeetPaymentScreen';
 import ChatHistory from '../screens/ChatHistory';
 import Appointments from '../screens/counselor/Appointments';
+import BlockedAccounts from '../screens/BlockedAccounts';
 
 // --- Theme Constants ---
 const THEME = {
@@ -288,6 +289,7 @@ const GuestStackNavigator = () => {
         <Stack.Screen name="BoostPayment" component={BoostPayment} />
         <Stack.Screen name="MeetPaymentScreen" component={MeetPaymentScreen} />
         <Stack.Screen name="ChatHistory" component={ChatHistory} />
+        <Stack.Screen name="BlockedAccounts" component={BlockedAccounts} />
         <Stack.Screen name="AiChat" component={AiChat} />
         <Stack.Screen name="Dashboard" component={Dashboard} />
         <Stack.Screen name="UpdateProfile" component={UpdateProfile} />

@@ -104,6 +104,11 @@ const Profile = ({ navigation }) => {
       icon: 'chatbubble-ellipses-outline',
       onPress: () => { navigation.navigate('ChatHistory') },
     },
+    {
+      title: 'Blocked Accounts',
+      icon: 'headset-outline',
+      onPress: () => { navigation.navigate('BlockedAccounts') },
+    },
   ];
 
   const appItems = [
@@ -289,7 +294,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 10,
-    marginTop: Platform.OS === 'android' || isTablet ? 10 : 0, // safe area adjustment
+    marginTop: Platform.OS === 'android' || isTablet ? 10 : 0,
   },
   headerButton: {
     width: 40,
@@ -298,13 +303,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    // iPad: Reduce scale factor
     fontSize: isTablet ? responsiveFontSize(1.5) : responsiveFontSize(2.3),
     fontFamily: 'Poppins-SemiBold',
     color: '#1A1A1A',
   },
   scrollContent: {
-    // Increased paddingBottom to ensure Logout button doesn't cover content
     paddingBottom: 100,
     paddingHorizontal: 15,
   },
@@ -383,7 +386,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: responsiveHeight(Platform.OS === 'ios' ? 2.3 : 2.1),
     borderRadius: 15,
-    marginTop: 30,
     shadowColor: '#E53935',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -391,7 +393,6 @@ const styles = StyleSheet.create({
     elevation: 10,
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 25 : 20,
-    // Tablet: Restrict width so it doesn't span the whole huge screen
     width: isTablet ? '50%' : '95%',
     alignSelf: 'center'
   },
@@ -409,7 +410,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#fff',
-    width: isTablet ? '50%' : '100%', // Tablet modal width
+    width: isTablet ? '50%' : '100%',
     borderRadius: 24,
     padding: 25,
     alignItems: 'center',
