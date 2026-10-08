@@ -1,4 +1,9 @@
 {
   "name": "calmspace",
-  "displayName": "calmspace"
+  "displayName": "calmspace",
+  "extra": {
+    "eas": {
+      "projectId": "110c9448-a82e-4fbd-bebc-de3526905411"
+    }
+  }
 }

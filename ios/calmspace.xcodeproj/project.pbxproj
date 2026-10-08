@@ -3,11 +3,10 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0C80B921A6F3F58F76C31292 /* libPods-calmspace.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-calmspace.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		25D03ABB415B43A1B83AD259 /* Poppins-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A33172DEF01043E287218D73 /* Poppins-SemiBold.ttf */; };
 		29A9E3D35CEC4885B967051B /* Poppins-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F5B4466FF22842C49DA29D8B /* Poppins-BoldItalic.ttf */; };
@@ -15,6 +14,9 @@
 		61BAEA9D3B9842E2AECF60A8 /* Poppins-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9E337DBFBA6F46B58B20AEF0 /* Poppins-Medium.ttf */; };
 		61C54FBB5FCC44FBA8ABCF93 /* Poppins-ExtraBoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8AE5E0B17B954A0DA1D7E61D /* Poppins-ExtraBoldItalic.ttf */; };
 		64F040599EF04E3A9C662AC9 /* Poppins-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = ED0B662A02FB42E39BE0747A /* Poppins-MediumItalic.ttf */; };
+		6B03A555306BE0890093D746 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B03A554306BE0860093D746 /* SceneDelegate.swift */; };
+		6BDEE17D305E60880097577D /* dummy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BDEE17C305E60840097577D /* dummy.swift */; };
+		6BDEE17F305E61380097577D /* main.jsbundle in Resources */ = {isa = PBXBuildFile; fileRef = 6BDEE17E305E61380097577D /* main.jsbundle */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		7EF8DE0E0A054D749D6E9981 /* Poppins-BlackItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F95582D9EFC14773AC9158C1 /* Poppins-BlackItalic.ttf */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
@@ -23,6 +25,7 @@
 		95822757884D4BA28F8A17CB /* Poppins-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6E8376F0970E4CD88C597015 /* Poppins-Italic.ttf */; };
 		9670C17BEC0744BD8AFD05B0 /* Poppins-ExtraLight.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 561C400CA01A4C86917C9345 /* Poppins-ExtraLight.ttf */; };
 		B6AE5639A9C24FB2ADB734CD /* Poppins-LightItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FC57865E12F4447F9BC8721A /* Poppins-LightItalic.ttf */; };
+		C2D9A667A6F30F1F04672C87 /* libPods-calmspace.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F194871D5DB0EBF53A9102DC /* libPods-calmspace.a */; };
 		D6EED89E03C05C59A587EF0B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		D9299BB04D954A38B3E819E6 /* Poppins-SemiBoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2D57E6D466DF48D9ABA1ABC9 /* Poppins-SemiBoldItalic.ttf */; };
 		E822DA3C994D4945A21234E8 /* Poppins-ExtraLightItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D0E046C8A6AB4C26851A3540 /* Poppins-ExtraLightItalic.ttf */; };
@@ -39,14 +42,17 @@
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = calmspace/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		24B74F84AD754DDFA9315BFC /* Poppins-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-Bold.ttf"; path = "../src/assets/fonts/Poppins-Bold.ttf"; sourceTree = "<group>"; };
 		2D57E6D466DF48D9ABA1ABC9 /* Poppins-SemiBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-SemiBoldItalic.ttf"; path = "../src/assets/fonts/Poppins-SemiBoldItalic.ttf"; sourceTree = "<group>"; };
-		3B4392A12AC88292D35C810B /* Pods-calmspace.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-calmspace.debug.xcconfig"; path = "Target Support Files/Pods-calmspace/Pods-calmspace.debug.xcconfig"; sourceTree = "<group>"; };
+		3AE00190D25A3DA4E4401119 /* Pods-calmspace.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-calmspace.release.xcconfig"; path = "Target Support Files/Pods-calmspace/Pods-calmspace.release.xcconfig"; sourceTree = "<group>"; };
 		5014A9FF89FF45F6A4889536 /* Poppins-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-Light.ttf"; path = "../src/assets/fonts/Poppins-Light.ttf"; sourceTree = "<group>"; };
 		51DAFD658D2741DABDC870E9 /* Poppins-ThinItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-ThinItalic.ttf"; path = "../src/assets/fonts/Poppins-ThinItalic.ttf"; sourceTree = "<group>"; };
 		561C400CA01A4C86917C9345 /* Poppins-ExtraLight.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-ExtraLight.ttf"; path = "../src/assets/fonts/Poppins-ExtraLight.ttf"; sourceTree = "<group>"; };
-		5709B34CF0A7D63546082F79 /* Pods-calmspace.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-calmspace.release.xcconfig"; path = "Target Support Files/Pods-calmspace/Pods-calmspace.release.xcconfig"; sourceTree = "<group>"; };
-		5DCACB8F33CDC322A6C60F78 /* libPods-calmspace.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-calmspace.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6B03A554306BE0860093D746 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		6B89DDF930552D7800A11181 /* Razorpay.xcframework */ = {isa = PBXFileReference; expectedSignature = "AppleDeveloperProgram:3J5MJT3GNL:Razorpay Software Private Limited"; lastKnownFileType = wrapper.xcframework; name = Razorpay.xcframework; path = "Pods/razorpay-core-pod/Pod/core/Razorpay.xcframework"; sourceTree = "<group>"; };
+		6BDEE17C305E60840097577D /* dummy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = dummy.swift; sourceTree = "<group>"; };
+		6BDEE17E305E61380097577D /* main.jsbundle */ = {isa = PBXFileReference; lastKnownFileType = text; path = main.jsbundle; sourceTree = "<group>"; };
 		6E8376F0970E4CD88C597015 /* Poppins-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-Italic.ttf"; path = "../src/assets/fonts/Poppins-Italic.ttf"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = calmspace/AppDelegate.swift; sourceTree = "<group>"; };
+		78BADFAF2E44781F58E1A6CB /* Pods-calmspace.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-calmspace.debug.xcconfig"; path = "Target Support Files/Pods-calmspace/Pods-calmspace.debug.xcconfig"; sourceTree = "<group>"; };
 		790AF13B5ACD4D65A6D63838 /* Poppins-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-Regular.ttf"; path = "../src/assets/fonts/Poppins-Regular.ttf"; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = calmspace/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		8AE5E0B17B954A0DA1D7E61D /* Poppins-ExtraBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-ExtraBoldItalic.ttf"; path = "../src/assets/fonts/Poppins-ExtraBoldItalic.ttf"; sourceTree = "<group>"; };
@@ -57,6 +63,7 @@
 		E48F91C876C64F0EB65635AD /* Poppins-Black.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-Black.ttf"; path = "../src/assets/fonts/Poppins-Black.ttf"; sourceTree = "<group>"; };
 		ED0B662A02FB42E39BE0747A /* Poppins-MediumItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-MediumItalic.ttf"; path = "../src/assets/fonts/Poppins-MediumItalic.ttf"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		F194871D5DB0EBF53A9102DC /* libPods-calmspace.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-calmspace.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F33B9A3249FD4E6A92D431EA /* Poppins-ExtraBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-ExtraBold.ttf"; path = "../src/assets/fonts/Poppins-ExtraBold.ttf"; sourceTree = "<group>"; };
 		F5B4466FF22842C49DA29D8B /* Poppins-BoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-BoldItalic.ttf"; path = "../src/assets/fonts/Poppins-BoldItalic.ttf"; sourceTree = "<group>"; };
 		F95582D9EFC14773AC9158C1 /* Poppins-BlackItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-BlackItalic.ttf"; path = "../src/assets/fonts/Poppins-BlackItalic.ttf"; sourceTree = "<group>"; };
@@ -68,7 +75,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0C80B921A6F3F58F76C31292 /* libPods-calmspace.a in Frameworks */,
+				C2D9A667A6F30F1F04672C87 /* libPods-calmspace.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -90,8 +97,9 @@
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				6B89DDF930552D7800A11181 /* Razorpay.xcframework */,
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				5DCACB8F33CDC322A6C60F78 /* libPods-calmspace.a */,
+				F194871D5DB0EBF53A9102DC /* libPods-calmspace.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -131,6 +139,9 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
+				6B03A554306BE0860093D746 /* SceneDelegate.swift */,
+				6BDEE17E305E61380097577D /* main.jsbundle */,
+				6BDEE17C305E60840097577D /* dummy.swift */,
 				13B07FAE1A68108700A75B9A /* calmspace */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
@@ -154,8 +165,8 @@
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				3B4392A12AC88292D35C810B /* Pods-calmspace.debug.xcconfig */,
-				5709B34CF0A7D63546082F79 /* Pods-calmspace.release.xcconfig */,
+				78BADFAF2E44781F58E1A6CB /* Pods-calmspace.debug.xcconfig */,
+				3AE00190D25A3DA4E4401119 /* Pods-calmspace.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -167,13 +178,13 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "calmspace" */;
 			buildPhases = (
-				C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */,
+				E4DBF769635FE38EA8CDE461 /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
-				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
+				0DFB357CD377A44F35D0C655 /* [CP] Embed Pods Frameworks */,
+				879F86F08DD8B7331CBA9ECC /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -221,6 +232,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6BDEE17F305E61380097577D /* main.jsbundle in Resources */,
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				91FBB3BF49374DC6A58CC4EB /* Poppins-Black.ttf in Resources */,
@@ -250,6 +262,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -262,9 +275,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"$WITH_ENVIRONMENT $REACT_NATIVE_XCODE\"\n";
+			shellScript = "set -euo pipefail\n\nexport NODE_BINARY=node\nexport RCT_NO_LAUNCH_PACKAGER=true\n\nWITH_ENV_SCRIPT=\"${PROJECT_DIR}/../node_modules/react-native/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"${PROJECT_DIR}/../node_modules/react-native/scripts/react-native-xcode.sh\"\n\nif [ ! -f \"$WITH_ENV_SCRIPT\" ]; then\n  echo \"Error: Cannot find with-environment.sh at $WITH_ENV_SCRIPT\"\n  ls -la \"${PROJECT_DIR}/../node_modules/react-native/scripts/xcode\" || true\n  exit 1\nfi\n\nif [ ! -f \"$REACT_NATIVE_XCODE\" ]; then\n  echo \"Error: Cannot find react-native-xcode.sh at $REACT_NATIVE_XCODE\"\n  ls -la \"${PROJECT_DIR}/../node_modules/react-native/scripts\" || true\n  exit 1\nfi\n\nbash \"$WITH_ENV_SCRIPT\" bash \"$REACT_NATIVE_XCODE\"\n";
 		};
-		00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */ = {
+		0DFB357CD377A44F35D0C655 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -285,7 +298,28 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-calmspace/Pods-calmspace-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */ = {
+		879F86F08DD8B7331CBA9ECC /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-calmspace/Pods-calmspace-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			inputPaths = (
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-calmspace/Pods-calmspace-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-calmspace/Pods-calmspace-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		E4DBF769635FE38EA8CDE461 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -307,27 +341,6 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		E235C05ADACE081382539298 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-calmspace/Pods-calmspace-resources-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			inputPaths = (
-			);
-			name = "[CP] Copy Pods Resources";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-calmspace/Pods-calmspace-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-calmspace/Pods-calmspace-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -335,6 +348,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6B03A555306BE0890093D746 /* SceneDelegate.swift in Sources */,
+				6BDEE17D305E60880097577D /* dummy.swift in Sources */,
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -344,7 +359,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-calmspace.debug.xcconfig */;
+			baseConfigurationReference = 78BADFAF2E44781F58E1A6CB /* Pods-calmspace.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -361,7 +376,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -381,7 +396,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-calmspace.release.xcconfig */;
+			baseConfigurationReference = 3AE00190D25A3DA4E4401119 /* Pods-calmspace.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -397,7 +412,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

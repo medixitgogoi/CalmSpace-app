@@ -66,6 +66,7 @@ const BoostPayment = ({ route, navigation }) => {
     try {
       const orderRequestData = {
         amount: amount,
+        // amount: 1, //change for testing
         currency: "INR",
         receipt: `receipt_${Date.now()}`
       };
@@ -88,8 +89,8 @@ const BoostPayment = ({ route, navigation }) => {
         const options = {
           currency: order.currency,
           key: RAZORPAY_API_KEY,
-          // amount: amount,
-          amount: 1, //change for testing
+          amount: amount,
+          // amount: 1, //change for testing
           name: 'CALMSPACE',
           order_id: order?.id,
           theme: { color: primary }
@@ -104,8 +105,8 @@ const BoostPayment = ({ route, navigation }) => {
                 razorpay_order_id: data.razorpay_order_id,
                 razorpay_payment_id: data.razorpay_payment_id,
                 razorpay_signature: data.razorpay_signature,
-                // amount: amount,
-                amount: 1, //change for testing
+                amount: amount,
+                // amount: 1, //change for testing
                 receipt: receiptData,
                 counselorId: id
               };
@@ -131,7 +132,7 @@ const BoostPayment = ({ route, navigation }) => {
                     },
                   });
 
-                  console.log('BoostPayment response: ', response); //change for testing
+                  // console.log('BoostPayment response: ', response); //change for testing
 
                   if (response?.data?.expiredAt) {
                     navigation.navigate('BoostChat', {
@@ -293,8 +294,8 @@ const BoostPayment = ({ route, navigation }) => {
                   { backgroundColor: loading ? '#A5C9CA' : primary },
                   isTablet && { height: 60 } // Taller button for tablet
                 ]}
-                // onPress={initiatePayment}
-                onPress={() => navigation.navigate('BoostChat')} //change for testing
+                onPress={initiatePayment}
+                // onPress={() => navigation.navigate('BoostChat')} //change for testing
                 disabled={loading}
               >
                 {loading ? (

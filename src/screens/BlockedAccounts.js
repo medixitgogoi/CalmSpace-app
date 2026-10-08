@@ -10,8 +10,8 @@ import {
     ActivityIndicator,
     RefreshControl,
     Platform,
-    ToastAndroid, // Native Android
-    Alert,        // Native iOS
+    ToastAndroid,
+    Alert,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -32,6 +32,9 @@ const BlockedAccounts = () => {
     const [blockedUsers, setBlockedUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+
+    // Track which user is currently being unblocked to show a specific loader
+    const [unblockingId, setUnblockingId] = useState(null);
 
     const fetchBlockedUsers = async () => {
         try {
@@ -56,17 +59,17 @@ const BlockedAccounts = () => {
         }, [authToken])
     );
 
-    // Platform Specific Native Feedback
     const showNativeFeedback = (title, message) => {
         if (Platform.OS === 'android') {
             ToastAndroid.show(message, ToastAndroid.SHORT);
         } else {
-            // Native iOS Alert (since iOS has no native Toast)
             Alert.alert(title, message, [{ text: 'OK' }]);
         }
     };
 
     const handleUnblockUser = async (userId) => {
+        // Start loading for this specific user
+        setUnblockingId(userId);
         try {
             const response = await axios.patch(
                 "/blockuser/unblock",
@@ -81,11 +84,15 @@ const BlockedAccounts = () => {
 
             if (response.data.status_code === 201) {
                 showNativeFeedback('Success', 'User unblocked successfully');
-                fetchBlockedUsers(); // Refresh the list
+                // Re-fetch the list
+                await fetchBlockedUsers();
             }
         } catch (error) {
             console.log('Unblocking failed: ', error);
             showNativeFeedback('Error', 'Failed to unblock user');
+        } finally {
+            // Stop loading
+            setUnblockingId(null);
         }
     };
 
@@ -94,25 +101,34 @@ const BlockedAccounts = () => {
         fetchBlockedUsers();
     }, [authToken]);
 
-    const renderItem = ({ item }) => (
-        <View style={styles.userCard}>
-            <View style={styles.userInfo}>
-                <View style={styles.avatarPlaceholder}>
-                    <Ionicons name="person" size={24} color="#999" />
+    const renderItem = ({ item }) => {
+        const isCurrentlyUnblocking = unblockingId === item?.blockUser?._id;
+
+        return (
+            <View style={styles.userCard}>
+                <View style={styles.userInfo}>
+                    <View style={styles.avatarPlaceholder}>
+                        <Ionicons name="person" size={24} color="#999" />
+                    </View>
+                    <View>
+                        <Text style={styles.userName}>{item?.blockUser?.name || 'Unknown User'}</Text>
+                        <Text style={styles.userEmail}>{item?.blockUser?.email || 'No email provided'}</Text>
+                    </View>
                 </View>
-                <View>
-                    <Text style={styles.userName}>{item?.blockUser?.name || 'Unknown User'}</Text>
-                    <Text style={styles.userEmail}>{item?.blockUser?.email || 'No email provided'}</Text>
-                </View>
+                <TouchableOpacity
+                    style={[styles.unblockButton, isCurrentlyUnblocking && { backgroundColor: '#F5F5F5' }]}
+                    onPress={() => !isCurrentlyUnblocking && handleUnblockUser(item?.blockUser?._id)}
+                    disabled={isCurrentlyUnblocking}
+                >
+                    {isCurrentlyUnblocking ? (
+                        <ActivityIndicator size="small" color="#E53935" />
+                    ) : (
+                        <Text style={styles.unblockText}>Unblock</Text>
+                    )}
+                </TouchableOpacity>
             </View>
-            <TouchableOpacity
-                style={styles.unblockButton}
-                onPress={() => handleUnblockUser(item?.blockUser?._id)}
-            >
-                <Text style={styles.unblockText}>Unblock</Text>
-            </TouchableOpacity>
-        </View>
-    );
+        );
+    };
 
     const EmptyComponent = () => (
         <View style={styles.emptyContainer}>
@@ -127,7 +143,6 @@ const BlockedAccounts = () => {
             <SafeAreaView style={styles.container}>
                 <StatusBar animated={true} barStyle={'dark-content'} backgroundColor={'#F8F9FC'} />
 
-                {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
                         <Ionicons name="arrow-back" size={isTablet ? 28 : 22} color={'#333'} />
@@ -175,7 +190,7 @@ const styles = StyleSheet.create({
     avatarPlaceholder: { width: 45, height: 45, borderRadius: 22.5, backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     userName: { fontFamily: 'Poppins-SemiBold', fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.8), color: '#333', includeFontPadding: false },
     userEmail: { fontFamily: 'Poppins-Regular', fontSize: isTablet ? responsiveFontSize(0.9) : responsiveFontSize(1.4), color: '#777', includeFontPadding: false },
-    unblockButton: { backgroundColor: '#FEEBEE', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
+    unblockButton: { backgroundColor: '#FEEBEE', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, minWidth: 80, alignItems: 'center', justifyContent: 'center' },
     unblockText: { color: '#E53935', fontFamily: 'Poppins-Medium', fontSize: isTablet ? responsiveFontSize(0.9) : responsiveFontSize(1.4), includeFontPadding: false },
     emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     emptyTitle: { fontFamily: 'Poppins-Bold', fontSize: responsiveFontSize(2.2), color: '#555', includeFontPadding: false, marginTop: 20 },

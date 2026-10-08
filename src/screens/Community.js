@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import { useSelector } from 'react-redux';
 import { fetchPosts } from '../utils/fetchPosts';
 import { useFocusEffect } from '@react-navigation/native';
 import { fetchReplies } from '../utils/fetchReplies';
+import { useContentFilter } from '../hooks/useContentFilter';
 
 // --- 1. Tablet Detection ---
 const { width } = Dimensions.get('window');
@@ -35,6 +36,7 @@ const isTablet = width >= 768;
 const Community = ({ navigation }) => {
   const userDetails = useSelector(state => state.user);
   const authToken = userDetails?.authToken;
+  const { checkContent } = useContentFilter();
 
   const [isWritePostModalVisible, setWritePostModalVisible] = useState(false);
   const [postContent, setPostContent] = useState('');
@@ -42,6 +44,11 @@ const Community = ({ navigation }) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const [isReportModalVisible, setReportModalVisible] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [isReporting, setIsReporting] = useState(false);
 
   // Memoized ReplyCard component
   const ReplyCard = React.memo(({ reply }) => {
@@ -57,7 +64,7 @@ const Community = ({ navigation }) => {
   });
 
   // Memoized PostCard component
-  const PostCard = React.memo(({ post, fetchReplies, authToken }) => {
+  const PostCard = React.memo(({ post, fetchReplies, authToken, onReportPress, loggedInUserId }) => {
     const formattedTimestamp = moment(post?.createdAt).fromNow();
     const [replies, setReplies] = useState([]);
     const [showReplies, setShowReplies] = useState(false);
@@ -66,6 +73,9 @@ const Community = ({ navigation }) => {
     const [isLiked, setIsLiked] = useState(post?.myLikes || false);
     const [likeCount, setLikeCount] = useState(post.reactionCount || 0);
     const [isUpdatingLike, setIsUpdatingLike] = useState(false);
+
+    // Check if the post was created by the logged-in user
+    const isOwnPost = post?.userId?._id === loggedInUserId;
 
     useEffect(() => {
       setIsLiked(post?.myLikes || false);
@@ -126,6 +136,13 @@ const Community = ({ navigation }) => {
               <Text style={styles.userName}>{post?.userId?.name || 'User'}</Text>
               <Text style={styles.timestamp}>{formattedTimestamp}</Text>
             </View>
+
+            {/* Condition: Only show three-dots if it's NOT the user's own post */}
+            {!isOwnPost && (
+              <TouchableOpacity onPress={() => onReportPress(post?._id)} style={styles.moreButton}>
+                <Ionicons name="ellipsis-vertical" size={20} color="#888" />
+              </TouchableOpacity>
+            )}
           </View>
           <Text style={styles.postContent}>{post?.text}</Text>
           <View style={styles.postActions}>
@@ -177,6 +194,17 @@ const Community = ({ navigation }) => {
       return;
     }
 
+    const isSafe = checkContent(postContent, () => {
+      Alert.alert(
+        "Action Required",
+        "Your post contains content that violates our community guidelines. Please keep it respectful.",
+        [{ text: "Edit Post" }]
+      );
+      setPostContent('');
+    });
+
+    if (!isSafe) return;
+
     setIsPosting(true);
     const data = { text: postContent };
 
@@ -215,6 +243,42 @@ const Community = ({ navigation }) => {
     }
   };
 
+  const handleReportPost = async () => {
+    if (reportReason.trim() === '') {
+      if (Platform.OS === 'android') {
+        ToastAndroid.show("Please provide a reason.", ToastAndroid.SHORT);
+      }
+      return;
+    }
+
+    setIsReporting(true);
+
+    try {
+      const response = await axios.post('/comunity/report-post', {
+        postId: String(selectedPostId),
+        reason: reportReason
+      }, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: authToken,
+        },
+      });
+
+      if (response?.data?.status_code === 201) {
+        Alert.alert("Report Submitted", "Thank you for helping us keep the community safe. We will review this post.");
+      }
+    } catch (error) {
+      console.log('Report error: ', error);
+      Alert.alert("Error", "Failed to submit report. Please try again.");
+    } finally {
+      setIsReporting(false);
+      setReportModalVisible(false);
+      setReportReason('');
+      setSelectedPostId(null);
+      fetchData();
+    }
+  };
+
   const fetchData = useCallback(async () => {
     try {
       const data = await fetchPosts(authToken);
@@ -246,6 +310,11 @@ const Community = ({ navigation }) => {
     fetchData();
   }, [fetchData]);
 
+  const openReportModal = (postId) => {
+    setSelectedPostId(postId);
+    setReportModalVisible(true);
+  };
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
@@ -265,7 +334,6 @@ const Community = ({ navigation }) => {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>The Calmspace Community</Text>
 
-          {/* --- FIX: Tablet Header Button --- */}
           {isTablet ? (
             <TouchableOpacity onPress={toggleWritePostModal} activeOpacity={0.8}>
               <LinearGradient
@@ -295,15 +363,13 @@ const Community = ({ navigation }) => {
                 post={item}
                 fetchReplies={fetchReplies}
                 authToken={authToken}
+                onReportPress={openReportModal}
+                loggedInUserId={userDetails?._id}
               />
             )}
             keyExtractor={item => item._id}
             contentContainerStyle={styles.postListContainer}
             showsVerticalScrollIndicator={false}
-            initialNumToRender={5}
-            maxToRenderPerBatch={5}
-            windowSize={7}
-            removeClippedSubviews={Platform.OS === 'android'}
             onRefresh={handleRefresh}
             refreshing={isRefreshing}
             ListEmptyComponent={
@@ -341,7 +407,6 @@ const Community = ({ navigation }) => {
           />
         )}
 
-        {/* --- FIX: Hide Floating Button on Tablet --- */}
         {!isTablet && (
           <TouchableOpacity
             style={styles.addPostButton}
@@ -362,7 +427,6 @@ const Community = ({ navigation }) => {
           onBackButtonPress={toggleWritePostModal}
           animationIn="zoomIn"
           animationOut="zoomOut"
-          backdropTransitionOutTiming={0}
           useNativeDriver={true}
           hideModalContentWhileAnimating={true}
           style={styles.modalView}>
@@ -397,12 +461,51 @@ const Community = ({ navigation }) => {
             </View>
           </View>
         </Modal>
+
+        <Modal
+          isVisible={isReportModalVisible}
+          onBackdropPress={() => setReportModalVisible(false)}
+          onBackButtonPress={() => setReportModalVisible(false)}
+          animationIn="zoomIn"
+          animationOut="zoomOut"
+          useNativeDriver={true}
+          style={styles.modalView}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Report Post</Text>
+            <Text style={styles.modalMessage}>Please explain why this content is objectionable.</Text>
+            <TextInput
+              style={[styles.textInput, { minHeight: responsiveHeight(15) }]}
+              placeholder="Reason for report..."
+              placeholderTextColor="#888"
+              multiline={true}
+              value={reportReason}
+              onChangeText={setReportReason}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setReportModalVisible(false)}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.writePostButton, { backgroundColor: '#E91E63' }]}
+                onPress={handleReportPost}
+                disabled={isReporting || reportReason.trim() === ''}>
+                {isReporting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.writePostButtonText}>Report</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
   );
 };
 
-export default Community;
+// export default Community;
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -435,17 +538,14 @@ const styles = StyleSheet.create({
     width: 35,
     height: 35,
   },
-  // --- New Tablet Header Button Styles ---
   headerAddButtonTablet: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    // paddingVertical: 8,
-    // paddingHorizontal: 16,
     height: responsiveHeight(4),
     width: responsiveWidth(18),
     borderRadius: 20,
-    marginRight: 10, // Some spacing from the right edge
+    marginRight: 10,
   },
   headerAddButtonText: {
     color: '#fff',
@@ -506,6 +606,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     color: '#888',
   },
+  moreButton: {
+    padding: 5,
+  },
   postContent: {
     fontSize: isTablet ? responsiveFontSize(1.2) : responsiveFontSize(1.8),
     fontFamily: 'Poppins-Regular',
@@ -556,8 +659,7 @@ const styles = StyleSheet.create({
   },
   modalView: {
     margin: 0,
-    justifyContent: isTablet ? 'center' : (Platform.OS === 'ios' ? 'flex-start' : 'center'),
-    paddingTop: isTablet ? 0 : (Platform.OS === 'ios' ? 110 : 0),
+    justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
@@ -677,3 +779,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
   },
 });
+
+export default Community;

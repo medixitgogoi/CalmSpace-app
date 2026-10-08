@@ -130,7 +130,7 @@ export const useChatStore = create((set, get) => ({
       Toast.show({
         type: 'error',
         text1: 'Failed to send message',
-        text2: error?.response?.data?.message || error.message,
+        text2: error?.response?.data?.message || error?.message,
       });
     }
   },
@@ -160,5 +160,5 @@ export const useChatStore = create((set, get) => ({
   },
 
   setSelectedUser: selectedUser => set({ selectedUser }),
-  setMessages: messages => set({ messages }), // helper if needed
+  setMessages: messages => set({ messages }),
 }));

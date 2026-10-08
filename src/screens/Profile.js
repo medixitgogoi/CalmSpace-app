@@ -10,8 +10,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   Platform,
-  Linking,
-  Modal,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
@@ -25,6 +23,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { fetchUserData } from '../utils/fetchUserData';
 import { disconnectSocket } from '../redux/socketSlice';
 import FallbackPrompt from '../components/FallbackPrompt';
+import { privacy, refund, terms } from '../utils/policies';
+import Modal from 'react-native-modal';
 
 // 1. Detect Tablet
 const { width } = Dimensions.get('window');
@@ -41,6 +41,10 @@ const Profile = ({ navigation }) => {
   const [userEmail, setUserEmail] = useState(null);
   const [newUser, setNewUser] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const [policyModalVisible, setPolicyModalVisible] = useState(false);
+  const [policyTitle, setPolicyTitle] = useState('');
+  const [policyData, setPolicyData] = useState([]);
 
   const logOutHandler = async () => {
     try {
@@ -77,20 +81,6 @@ const Profile = ({ navigation }) => {
     }, [authToken]),
   );
 
-  const handleLinkPress = async (url) => {
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
-    } else {
-      Toast.show({
-        type: 'error',
-        text1: `Could not open the link.`,
-        position: 'top',
-        topOffset: 40,
-      });
-    }
-  };
-
   const profileImageSource = userDetails?.gender === 'female' ? require('../assets/female_avatar.png') : require('../assets/male_avatar.png');
 
   const menuItems = [
@@ -113,24 +103,31 @@ const Profile = ({ navigation }) => {
 
   const appItems = [
     {
-      title: 'About Us',
-      icon: 'information-circle-outline',
-      onPress: () => handleLinkPress('https://thecalmspace.in/aboutus'),
-    },
-    {
       title: 'Privacy Policy',
       icon: 'shield-checkmark-outline',
-      onPress: () => handleLinkPress('https://thecalmspace.in/footer/privacy'),
+      onPress: () => {
+        setPolicyTitle('Privacy Policy');
+        setPolicyData(privacy);
+        setPolicyModalVisible(true);
+      },
     },
     {
       title: 'Terms and Conditions',
       icon: 'document-text-outline',
-      onPress: () => handleLinkPress('https://thecalmspace.in/footer/t&c'),
+      onPress: () => {
+        setPolicyTitle('Terms and Conditions');
+        setPolicyData(terms);
+        setPolicyModalVisible(true);
+      },
     },
     {
       title: 'Refund and Cancellation Policy',
       icon: 'cash-outline',
-      onPress: () => handleLinkPress('https://thecalmspace.in/footer/refund'),
+      onPress: () => {
+        setPolicyTitle('Refund Policy');
+        setPolicyData(refund);
+        setPolicyModalVisible(true);
+      },
     },
   ];
 
@@ -167,7 +164,6 @@ const Profile = ({ navigation }) => {
           <FallbackPrompt />
         ) : (
           <ScrollView contentContainerStyle={styles.scrollContent}>
-
             {/* 2. Tablet Wrapper: Centers content and restricts width on iPad */}
             <View style={isTablet ? styles.tabletContainer : styles.mobileContainer}>
 
@@ -241,36 +237,96 @@ const Profile = ({ navigation }) => {
         </TouchableOpacity>
 
         <Modal
-          animationType="fade"
-          transparent={true}
-          visible={showLogoutPrompt}
-          onRequestClose={() => {
-            setShowLogoutPrompt(false);
-          }}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalIconContainer}>
-                <Ionicons name="log-out-outline" size={isTablet ? 40 : 32} color="#E53935" />
-              </View>
-              <Text style={styles.modalTitle}>Ready to Go?</Text>
-              <Text style={styles.modalSubText}>
-                Are you sure you want to log out? You'll be missed!
-              </Text>
-              <View style={styles.modalButtonContainer}>
-                <TouchableOpacity
-                  onPress={() => setShowLogoutPrompt(false)}
-                  style={[styles.modalButton, styles.cancelButton]}>
-                  <Text style={[styles.modalButtonText, { color: '#555' }]}>
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={logOutHandler}
-                  style={[styles.modalButton, styles.confirmButton]}>
-                  <Text style={styles.modalButtonText}>Yes, Logout</Text>
-                </TouchableOpacity>
-              </View>
+          isVisible={showLogoutPrompt}
+          onBackdropPress={() => setShowLogoutPrompt(false)}
+          onBackButtonPress={() => setShowLogoutPrompt(false)}
+          animationIn="zoomIn"
+          animationOut="zoomOut"
+          backdropOpacity={0.5}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="log-out-outline" size={isTablet ? 40 : 32} color="#E53935" />
             </View>
+
+            <Text style={styles.modalTitle}>Ready to Go?</Text>
+
+            <Text style={styles.modalSubText}>
+              Are you sure you want to log out? You'll be missed!
+            </Text>
+
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                onPress={() => setShowLogoutPrompt(false)}
+                style={[styles.modalButton, styles.cancelButton]}>
+                <Text style={[styles.modalButtonText, { color: '#555' }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={logOutHandler}
+                style={[styles.modalButton, styles.confirmButton]}>
+                <Text style={styles.modalButtonText}>Yes, Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          isVisible={policyModalVisible}
+          onBackdropPress={() => setPolicyModalVisible(false)}
+          onBackButtonPress={() => setPolicyModalVisible(false)}
+
+          style={{ justifyContent: 'flex-end', margin: 0 }}
+
+          animationIn="slideInUp"
+          animationOut="slideOutDown"
+          backdropOpacity={0.5}
+
+          swipeDirection="down"
+          onSwipeComplete={() => setPolicyModalVisible(false)}
+          propagateSwipe={true}   // allows scroll inside
+        >
+          <View style={styles.policyModalContainer}>
+
+            {/* Centered Close Button */}
+            <TouchableOpacity
+              onPress={() => setPolicyModalVisible(false)}
+              style={styles.floatingCloseButton}
+            >
+              <Ionicons name="close" size={22} color="#333" />
+            </TouchableOpacity>
+
+            <View style={{
+              width: 40,
+              height: 5,
+              backgroundColor: '#ccc',
+              borderRadius: 10,
+              alignSelf: 'center',
+              marginBottom: 10
+            }} />
+
+            {/* Header */}
+            <View style={styles.policyHeader}>
+              <Text style={styles.policyTitle}>{policyTitle}</Text>
+            </View>
+
+            {/* Content */}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {policyData.map((item, index) => (
+                <View key={index} style={{ marginBottom: 15 }}>
+
+                  {item.heading && (
+                    <Text style={styles.policyHeading}>{item.heading}</Text>
+                  )}
+
+                  <Text style={styles.policyText}>{item.desc}</Text>
+
+                </View>
+              ))}
+            </ScrollView>
+
           </View>
         </Modal>
       </SafeAreaView>
@@ -284,6 +340,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F8F9FC',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   container: {
     flex: 1,
@@ -484,6 +545,64 @@ const styles = StyleSheet.create({
     fontSize: isTablet ? responsiveFontSize(0.9) : responsiveFontSize(1.5),
     color: '#AAA',
     marginTop: 4,
+  },
+  policyModalContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingTop: 15,
+    maxHeight: '80%',
+  },
+  policyHeader: {
+    backgroundColor: '#5ae8dc',
+    paddingVertical: 15,
+    paddingHorizontal: 15,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    marginBottom: 20,
+    marginTop: 15
+  },
+  policyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111',
+    textAlign: 'center',
+  },
+  policyMainHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 5,
+    color: '#000',
+  },
+  policyHeading: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 3,
+    color: '#333',
+  },
+  policyText: {
+    fontSize: 13,
+    color: '#555',
+    lineHeight: 20,
+  },
+  floatingCloseButton: {
+    position: 'absolute',
+    top: -50,
+    alignSelf: 'center',
+    backgroundColor: '#f9b2b2',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5, // Android shadow
+    shadowColor: '#000', // iOS shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    zIndex: 10,
+    color: '#fff'
   },
 });
 

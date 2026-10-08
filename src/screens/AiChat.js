@@ -24,9 +24,30 @@ import {
 } from 'react-native-responsive-dimensions';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LottieView from 'lottie-react-native';
-import { DEEPSEEK_API_KEY } from '@env';
+import { SARVAM_API_KEY } from '@env';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
+import { Linking } from 'react-native'; // Ensure Linking is imported at the top
+
+// Keywords associated with self-harm, suicide, or severe crisis
+const CRISIS_KEYWORDS = [
+  'suicide', 'kill myself', 'end my life', 'want to die',
+  'self harm', 'cutting myself', 'hurt myself', 'overdose'
+];
+
+// Helper to check if input contains crisis triggers
+const checkForCrisis = (text) => {
+  const lowerText = text.toLowerCase();
+  return CRISIS_KEYWORDS.some(keyword => lowerText.includes(keyword));
+};
+
+// Response returned instantly if a crisis keyword is detected
+const CRISIS_RESPONSE =
+  "If you or someone you know is in distress or having thoughts of self-harm, please reach out for immediate help. You are not alone.\n\n" +
+  "• India: Call Tele-MANAS at 14416 or 1800-891-4416 | KIRAN at 1800-599-0019 | Emergency: 112\n" +
+  "• US/Canada: Call or text 988\n" +
+  "• UK: Call 111 (NHS) or 116 123 (Samaritans)\n" +
+  "• International: Visit https://findahelpline.com to find support in your country.";
 
 // --- 1. Tablet Detection ---
 const { width } = Dimensions.get('window');
@@ -39,10 +60,10 @@ const AiChat = ({ navigation }) => {
   const userDetails = useSelector(state => state.user);
   const authToken = userDetails?.authToken;
 
-  // Initial welcome message
+  // Initial welcome message (Updated for Apple Guideline 1.4.1)
   const initialMessage = {
     id: 'welcome-msg',
-    text: 'Hi there! I\'m Luna, your personal AI mental health companion. How are you feeling today?',
+    text: "Hi there! I'm Luna, your personal AI mindfulness companion. Please note that I am an AI, not a doctor or mental health professional. How are you feeling today?",
     type: 'bot'
   };
 
@@ -56,48 +77,53 @@ const AiChat = ({ navigation }) => {
   const [otherReportText, setOtherReportText] = useState('');
   const [messageToReport, setMessageToReport] = useState(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
-  const [reportedMessages, setReportedMessages] = useState({});
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
-  // --- Fetch Chat History on Mount ---
-  useEffect(() => {
-    const fetchChatHistory = async () => {
-      try {
-        const response = await axios.get('/luna/get', {
-          headers: { Authorization: authToken },
+  const [isClearModalVisible, setIsClearModalVisible] = useState(false);
+  const [isClearingChat, setIsClearingChat] = useState(false);
+
+  const [isCrisisModalVisible, setCrisisModalVisible] = useState(false);
+
+  // --- Fetch Chat History Function ---
+  const fetchChatHistory = async () => {
+    try {
+      const response = await axios.get('/luna/get', {
+        headers: { Authorization: authToken },
+      });
+
+      if (response?.data?.status_code === 200 && Array.isArray(response.data.data)) {
+        const historyData = response.data.data.reverse();
+        const formattedMessages = [];
+
+        formattedMessages.push(initialMessage);
+
+        historyData.forEach((item) => {
+          formattedMessages.push({
+            id: `${item._id}_user`,
+            text: item.userPrompt,
+            type: 'user',
+            createdAt: item.createdAt,
+          });
+          formattedMessages.push({
+            id: `${item._id}_ai`,
+            text: item.aiPrompt,
+            type: 'bot',
+            createdAt: item.createdAt,
+          });
         });
 
-        if (response?.data?.status_code === 200 && Array.isArray(response.data.data)) {
-          const historyData = response.data.data.reverse();
-          const formattedMessages = [];
-
-          formattedMessages.push(initialMessage);
-
-          historyData.forEach((item) => {
-            formattedMessages.push({
-              id: `${item._id}_user`,
-              text: item.userPrompt,
-              type: 'user',
-              createdAt: item.createdAt,
-            });
-            formattedMessages.push({
-              id: `${item._id}_ai`,
-              text: item.aiPrompt,
-              type: 'bot',
-              createdAt: item.createdAt,
-            });
-          });
-
-          setMessages(formattedMessages);
-        }
-      } catch (error) {
-        console.error('Failed to fetch chat history:', error);
-      } finally {
-        setIsLoadingHistory(false);
+        setMessages(formattedMessages);
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch chat history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
 
+  // --- Fetch Chat History on Mount ---
+  useEffect(() => {
     if (authToken) {
       fetchChatHistory();
     } else {
@@ -142,31 +168,55 @@ const AiChat = ({ navigation }) => {
     setInput('');
 
     const userMessage = { id: Date.now().toString(), text: cleanInput, type: 'user' };
+    setMessages(prev => [...prev, userMessage]);
 
-    setMessages(prev => [...prev, userMessage, { id: 'typing', type: 'typing' }]);
+    // ─────────────────────────────────────────────────────────────
+    // ✅ AUTOMATED CRISIS KEYWORD DETECTION
+    // ─────────────────────────────────────────────────────────────
+    if (checkForCrisis(cleanInput)) {
+      const crisisMessage = {
+        id: (Date.now() + 1).toString(),
+        text: CRISIS_RESPONSE,
+        type: 'bot',
+        isCrisis: true, // Optional flag for styling if needed
+      };
+
+      setMessages(prev => [...prev, crisisMessage]);
+      saveChatToBackend(cleanInput, CRISIS_RESPONSE);
+      setIsAwaitingResponse(false);
+      return; // Stop execution so it doesn't query the AI API
+    }
+    // ─────────────────────────────────────────────────────────────
+
+    // Show typing animation for regular messages
+    setMessages(prev => [...prev, { id: 'typing', type: 'typing' }]);
 
     try {
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const res = await fetch('https://api.sarvam.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+          'api-subscription-key': SARVAM_API_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "tngtech/deepseek-r1t2-chimera:free",
+          model: 'sarvam-105b',
           messages: [
             {
               role: 'system',
               content:
-                'You are Luna, an AI assistant specialized only in mental health support. You must respond only to questions about mental well-being, mental health issues like stress, anxiety, depression, self-care, and emotional support. For anything outside this domain, politely state that you can only assist with mental health topics. Do not use asterisks in your responses.',
+                'You are Luna, an AI assistant specialized only in mindfulness, self-care, and general well-being support. You must not provide clinical diagnosis, medical advice, or treatment plans. Do not use asterisks in your responses.',
             },
             { role: 'user', content: cleanInput },
           ],
+          temperature: 0.7,
         }),
       });
 
       const data = await res.json();
-      let botReply = data?.choices?.[0]?.message?.content?.trim().replace(/\*/g, '');
+      console.log('SARVAM API RESPONSE: ', data);
+
+      let botReply = data?.choices?.[0]?.message?.content?.trim() ?? '';
+      botReply = botReply.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\*/g, '').trim();
 
       if (!botReply) {
         botReply = "I'm sorry, I couldn't generate a response. Could you please try rephrasing?";
@@ -178,7 +228,7 @@ const AiChat = ({ navigation }) => {
       saveChatToBackend(cleanInput, botReply);
 
     } catch (error) {
-      console.error('API Error:', error);
+      console.log('API Error:', error);
       const errorMessage = { id: Date.now().toString(), text: 'Oops! I\'m having trouble connecting. Please try again in a moment.', type: 'bot' };
       setMessages(prev => prev.filter(m => m.id !== 'typing').concat(errorMessage));
     } finally {
@@ -194,10 +244,24 @@ const AiChat = ({ navigation }) => {
   };
 
   const handleReportSubmit = async () => {
+    console.log('report submit function entered');
+
     setIsSubmittingReport(true);
 
+    // 🔍 Find the user prompt corresponding to this bot message
+    let userPrompt = '';
+    const botIndex = messages.findIndex(m => m.id === messageToReport?.id);
+
+    if (botIndex > 0) {
+      const prevMessage = messages[botIndex - 1];
+      if (prevMessage?.type === 'user') {
+        userPrompt = prevMessage.text;
+      }
+    }
+
     const reportData = {
-      report: selectedReportReason ? selectedReportReason : otherReportText
+      report: selectedReportReason ? selectedReportReason : otherReportText,
+      userPrompt: userPrompt, // ✅ added field
     };
 
     try {
@@ -208,9 +272,14 @@ const AiChat = ({ navigation }) => {
         },
       });
 
+      console.log('report response: ', response);
+
       if (response?.data?.status_code == 200) {
-        setReportedMessages(prev => ({ ...prev, [messageToReport.id]: true }));
+
         closeReportModal();
+
+        // ✅ Refresh chat → removes reported message
+        await fetchChatHistory();
 
         if (Platform.OS === 'android') {
           ToastAndroid.show(response?.data?.message, ToastAndroid.LONG);
@@ -220,6 +289,9 @@ const AiChat = ({ navigation }) => {
       }
 
     } catch (error) {
+      console.log('REPORT ERROR:', error);
+      console.log('REPORT ERROR RESPONSE:', error?.response);
+
       if (Platform.OS === 'android') {
         ToastAndroid.show("Failed to report response. Please try again.", ToastAndroid.LONG);
       } else {
@@ -252,7 +324,6 @@ const AiChat = ({ navigation }) => {
     }
 
     const isUser = item.type === 'user';
-    const isReportedBotMessage = item.type === 'bot' && reportedMessages?.[item.id];
 
     if (isUser) {
       return (
@@ -274,25 +345,124 @@ const AiChat = ({ navigation }) => {
           style={[
             styles.messageBubble,
             styles.botBubble,
-            isReportedBotMessage && styles.reportedBotBubble
           ]}
           android_ripple={item.id === 'welcome-msg' ? null : { color: '#E5E7EB' }}
         >
           <Text style={styles.messageText}>{item.text}</Text>
         </Pressable>
-        {isReportedBotMessage && (
-          <View style={styles.flagContainer}>
-            <Ionicons name="flag" size={16} color="#B91C1C" />
-          </View>
-        )}
       </View>
     );
+  };
+
+  const handleClearChat = () => {
+    setIsClearModalVisible(true);
+  };
+
+  const confirmClearChat = async () => {
+    try {
+      setIsClearingChat(true);
+
+      const response = await axios.delete('/luna/clear-chat', {
+        headers: {
+          Authorization: authToken,
+        },
+      });
+
+      console.log('CLEAR CHAT RESPONSE:', response);
+
+      if (response?.data?.status_code === 200) {
+        setMessages([initialMessage]);
+        setIsClearModalVisible(false);
+
+        if (Platform.OS === 'android') {
+          ToastAndroid.show(response?.data?.message, ToastAndroid.LONG);
+        } else {
+          Alert.alert("Success", response?.data?.message);
+        }
+      }
+
+    } catch (error) {
+      console.log('CLEAR CHAT ERROR:', error);
+      console.log('CLEAR CHAT ERROR RESPONSE:', error?.response);
+
+      if (Platform.OS === 'android') {
+        ToastAndroid.show("Failed to clear chat. Please try again.", ToastAndroid.LONG);
+      } else {
+        Alert.alert("Error", "Failed to clear chat. Please try again.");
+      }
+    } finally {
+      setIsClearingChat(false);
+    }
   };
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle='dark-content' backgroundColor='#fff' />
+
+        {/* --- Crisis / Emergency Helplines Modal --- */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={isCrisisModalVisible}
+          onRequestClose={() => setCrisisModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalView}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                <Ionicons name="warning" size={24} color="#DC2626" style={{ marginRight: 8 }} />
+                <Text style={[styles.modalTitle, { marginBottom: 0, color: '#DC2626' }]}>Emergency Resources</Text>
+              </View>
+
+              <Text style={styles.modalSubText}>
+                If you or someone you know is in immediate danger or needs crisis support, please reach out directly to these free, confidential services:
+              </Text>
+
+              {/* Tele-MANAS (India Govt Helpline) */}
+              <TouchableOpacity
+                style={styles.crisisCallButton}
+                onPress={() => Linking.openURL('tel:1800-89-14416')}
+              >
+                <Ionicons name="call" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={styles.crisisCallButtonText}>Call 1800-89-14416 (Tele-MANAS India)</Text>
+              </TouchableOpacity>
+
+              {/* KIRAN (Mental Health Helpline India) */}
+              <TouchableOpacity
+                style={[styles.crisisCallButton, { backgroundColor: '#059669' }]}
+                onPress={() => Linking.openURL('tel:18005990019')}
+              >
+                <Ionicons name="call" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={styles.crisisCallButtonText}>Call 1800-599-0019 (KIRAN India)</Text>
+              </TouchableOpacity>
+
+              {/* US / Global 988 */}
+              <TouchableOpacity
+                style={[styles.crisisCallButton, { backgroundColor: '#0284C7' }]}
+                onPress={() => Linking.openURL('tel:988')}
+              >
+                <Ionicons name="call" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={styles.crisisCallButtonText}>Call / Text 988 (US / Canada)</Text>
+              </TouchableOpacity>
+
+              {/* International Link */}
+              <TouchableOpacity
+                style={[styles.crisisCallButton, { backgroundColor: '#4B5563' }]}
+                onPress={() => Linking.openURL('https://findahelpline.com')}
+              >
+                <Ionicons name="globe-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={styles.crisisCallButtonText}>Find International Helpline</Text>
+              </TouchableOpacity>
+
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: '#E5E7EB', marginTop: 15 }]}
+                onPress={() => setCrisisModalVisible(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: '#1F2937' }]}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
 
         {/* --- Info Modal --- */}
         <Modal
@@ -362,6 +532,53 @@ const AiChat = ({ navigation }) => {
           </View>
         </Modal>
 
+        {/* --- Clear Chat Modal --- */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={isClearModalVisible}
+          onRequestClose={() => setIsClearModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalView}>
+
+              <Text style={styles.modalTitle}>Clear Chat</Text>
+              <Text style={styles.modalSubText}>
+                Are you sure you want to delete all messages? This action cannot be undone.
+              </Text>
+
+              {/* Buttons */}
+              <View style={{ flexDirection: 'row', marginTop: 20 }}>
+
+                {/* Cancel */}
+                <Pressable
+                  style={[styles.modalButton, { flex: 1, backgroundColor: '#E5E7EB', marginRight: 10 }]}
+                  onPress={() => setIsClearModalVisible(false)}
+                  disabled={isClearingChat}
+                >
+                  <Text style={[styles.modalButtonText, { color: '#111827' }]}>
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                {/* Confirm */}
+                <Pressable
+                  style={[styles.modalButton, { flex: 1, backgroundColor: '#DC2626' }]}
+                  onPress={confirmClearChat}
+                  disabled={isClearingChat}
+                >
+                  {isClearingChat ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.modalButtonText}>Clear</Text>
+                  )}
+                </Pressable>
+
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         <KeyboardAvoidingView
           style={styles.keyboardAvoidingView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
@@ -371,16 +588,51 @@ const AiChat = ({ navigation }) => {
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
               <Ionicons name="arrow-back" size={isTablet ? 30 : responsiveFontSize(2.8)} color={'#1F2937'} />
             </TouchableOpacity>
+
             <View style={styles.headerAvatar}>
               <Ionicons name="sparkles" size={isTablet ? 24 : responsiveFontSize(2.8)} color="#FFFFFF" />
             </View>
+
             <View style={{ flex: 1 }}>
               <Text style={styles.headerTitle}>Luna</Text>
-              <Text style={styles.headerSubtitle}>AI Mental Health Companion</Text>
+              <Text style={styles.headerSubtitle}>AI Daily Mindfulness Companion</Text>
             </View>
+
+            {/* ✅ ADDED: Emergency Help Button */}
+            <TouchableOpacity
+              onPress={() => setCrisisModalVisible(true)}
+              style={styles.sosButton}
+            >
+              <Ionicons name="shield-checkmark" size={14} color="#FFFFFF" style={{ marginRight: 3 }} />
+              <Text style={styles.sosButtonText}>Help</Text>
+            </TouchableOpacity>
+
+            {/* Clear Chat Button */}
+            <TouchableOpacity
+              onPress={handleClearChat}
+              style={{ marginRight: 10 }}
+            >
+              <Ionicons
+                name="trash-outline"
+                size={isTablet ? 30 : responsiveFontSize(2.8)}
+                color={'#DC2626'}
+              />
+            </TouchableOpacity>
+
+            {/* Info Button */}
             <TouchableOpacity onPress={() => setInfoModalVisible(true)}>
               <Ionicons name="information-circle" size={isTablet ? 40 : responsiveFontSize(3.2)} color={'#1F2937'} />
             </TouchableOpacity>
+          </View>
+
+          {/* ------------------------------------------------------------- */}
+          {/* ✅ ADDED: In-App Medical Disclaimer Banner for Apple Review  */}
+          {/* ------------------------------------------------------------- */}
+          <View style={styles.disclaimerContainer}>
+            <Ionicons name="alert-circle-outline" size={isTablet ? 20 : 16} color="#92400E" style={{ marginRight: 6 }} />
+            <Text style={styles.disclaimerText}>
+              <Text style={{ fontWeight: 'bold' }}>Medical Disclaimer:</Text> Luna is an AI assistant for general wellness and reflection. It is not intended for medical advice, diagnosis, or crisis care.
+            </Text>
           </View>
 
           {/* Chat Messages */}
@@ -472,6 +724,55 @@ const styles = StyleSheet.create({
     fontSize: isTablet ? responsiveFontSize(1.1) : responsiveFontSize(1.4),
     fontFamily: 'Poppins-Regular',
     color: '#6B7280',
+  },
+  disclaimerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: isTablet ? 14 : 11,
+    color: '#78350F',
+    lineHeight: isTablet ? 18 : 15,
+  },
+  sosButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  sosButtonText: {
+    color: '#FFFFFF',
+    fontSize: isTablet ? 13 : 11,
+    fontWeight: 'bold',
+  },
+  crisisCallButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DC2626',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    width: '100%',
+    marginTop: 10,
+  },
+  crisisCallButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: isTablet ? 16 : 14,
   },
   listContainer: {
     paddingVertical: 10,

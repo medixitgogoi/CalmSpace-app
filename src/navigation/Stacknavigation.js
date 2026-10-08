@@ -8,6 +8,7 @@ import { addUser } from '../redux/UserSlice';
 import { useDispatch, useSelector } from 'react-redux';
 
 axios.defaults.baseURL = 'https://api.thecalmspace.in/api/';
+// axios.defaults.baseURL = 'http://localhost:8000/api/';
 
 const Stacknavigation = () => {
   const dispatch = useDispatch();

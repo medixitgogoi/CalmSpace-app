@@ -177,6 +177,7 @@ const ShimmerCard = ({ isTablet }) => (
 );
 
 const Home = ({ navigation }) => {
+
   const dispatch = useDispatch();
   const userDetails = useSelector(state => state.user);
   const authToken = userDetails?.authToken;
@@ -245,6 +246,8 @@ const Home = ({ navigation }) => {
         setLoading(true);
         try {
           const userData = await fetchUserData(authToken);
+          console.log('Fetched user data for Home screen:', userData);
+          
           setUserName(userData?.user?.name);
           setProfileScore(userData?.questionScore);
           setUserId(userData?.user?._id);
@@ -290,11 +293,10 @@ const Home = ({ navigation }) => {
     return 'Just now';
   }, []);
 
-  // --- RENDER FUNCTIONS ---
   // Important: DO NOT call useNavigation here. Use the 'navigation' prop passed to 'Home'.
   const renderListHeader = useCallback(() => (
     <View style={{ paddingBottom: 10 }}>
-      {loading ? (
+      {/* {loading ? (
         <View style={{ marginHorizontal: 15, marginTop: 15 }}>
           <ShimmerPlaceHolder LinearGradient={LinearGradient} style={{ width: '100%', height: responsiveHeight(10), borderRadius: 15 }} />
         </View>
@@ -302,7 +304,7 @@ const Home = ({ navigation }) => {
         <ProgressBar score={profileScore} navigation={navigation} />
       ) : (
         <Quiz />
-      )}
+      )} */}
 
       {/* Pass navigation & isTablet prop explicitly */}
       <ServiceFeatures navigation={navigation} isTablet={isTablet} />
@@ -336,7 +338,6 @@ const Home = ({ navigation }) => {
         key={isTablet ? 'h-grid' : 'h-list'}
         numColumns={isTablet ? 2 : 1}
         columnWrapperStyle={isTablet ? { paddingHorizontal: 10 } : null}
-
         contentContainerStyle={{
           paddingTop: HEADER_MAX_HEIGHT,
           paddingBottom: responsiveHeight(14)
@@ -399,7 +400,6 @@ const Home = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  // --- SERVICE FEATURES ---
   serviceFeaturesContainer: {
     marginTop: responsiveHeight(2),
     marginBottom: responsiveHeight(2.5),

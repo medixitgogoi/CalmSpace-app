@@ -17,36 +17,39 @@ import {
   StyleSheet,
   Image,
   useWindowDimensions,
+  ActivityIndicator,
+  Alert,
+  Keyboard,
 } from 'react-native';
+import Modal from 'react-native-modal';
 import { useFocusEffect } from '@react-navigation/native';
 import { responsiveFontSize } from 'react-native-responsive-dimensions';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
-import { primary } from '../../utils/colors'; // Ensure this path is correct
+import { primary } from '../../utils/colors';
 import { useSelector } from 'react-redux';
 import { useChatStore } from '../../hooks/useChatStore';
+import { useContentFilter } from '../../hooks/useContentFilter';
 import moment from 'moment';
+import axios from 'axios';
 
-// --- Constants ---
 const COLORS = {
-  bg: '#F7F9FC',
+  bg: '#F1F5F9',
   white: '#FFFFFF',
-  textDark: '#111827',
-  textLight: '#6B7280',
+  textDark: '#0F172A',
+  textLight: '#64748B',
   primary: primary || '#2563EB',
-  inputBg: '#F3F4F6',
-};
-
-// Helper for adaptive font sizing
-const getAdaptiveFontSize = (size, width) => {
-  return width > 768 ? responsiveFontSize(size * 0.7) : responsiveFontSize(size);
+  inputBg: '#FFFFFF',
+  danger: '#EF4444',
+  success: '#10B981',
 };
 
 const QuickBoostChat = ({ navigation, route }) => {
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isTablet = width >= 768;
-  const fSize = (s) => getAdaptiveFontSize(s, width);
+  const fSize = (s) => (isTablet ? responsiveFontSize(s * 0.7) : responsiveFontSize(s));
 
   const {
     messages,
@@ -58,9 +61,15 @@ const QuickBoostChat = ({ navigation, route }) => {
     socket,
   } = useChatStore();
 
-  const { id, name, pic, email } = route.params;
+  const { checkContent } = useContentFilter();
+  const { id, name, pic } = route.params;
   const userDetails = useSelector(state => state.user);
+  const authToken = userDetails?.authToken;
+
   const [message, setMessage] = useState('');
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
   const flatListRef = useRef(null);
 
   useEffect(() => {
@@ -75,14 +84,10 @@ const QuickBoostChat = ({ navigation, route }) => {
     }
   }, [socket, id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
 
-  const formatTime = dateStr => moment(dateStr).format('h:mm A');
-
-  const getDateLabel = dateStr => {
+  const getDateLabel = (dateStr) => {
     const date = moment(dateStr);
-    const today = moment().startOf('day');
-    const yesterday = moment().subtract(1, 'days').startOf('day');
-    if (date.isSame(today, 'd')) return 'Today';
-    if (date.isSame(yesterday, 'd')) return 'Yesterday';
+    if (date.isSame(moment(), 'day')) return 'Today';
+    if (date.isSame(moment().subtract(1, 'days'), 'day')) return 'Yesterday';
     return date.format('MMMM D, YYYY');
   };
 
@@ -117,284 +122,251 @@ const QuickBoostChat = ({ navigation, route }) => {
   );
 
   const handleSendMessage = async () => {
-    if (!message.trim()) return;
-    await sendMessage({ text: message, userId: id, image: null });
+    // Trim the message to remove leading/trailing whitespace
+    const trimmedMessage = message.trim();
+
+    // Check if the message is empty after trimming
+    if (!trimmedMessage) return;
+
+    // Use the trimmed message for the content filter check
+    const isSafe = checkContent(trimmedMessage, () => {
+      Alert.alert(
+        "Safety Notice",
+        "Your message contains language that violates professional standards."
+      );
+      setMessage('');
+    });
+
+    if (!isSafe) return;
+
+    // Send the clean, trimmed message
+    await sendMessage({ text: trimmedMessage, userId: id, image: null });
+
+    // Clear the input
     setMessage('');
+  };
+
+  const handleBlockUser = async () => {
+    setIsBlocking(true);
+    try {
+      const response = await axios.post(
+        "/blockuser",
+        { blockUser: id },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: authToken,
+          },
+        }
+      );
+
+      if (response?.data?.status_code === 201) {
+        setShowConfirmModal(false);
+        navigation.navigate('QuickBoost');
+      }
+    } catch (error) {
+      console.log('Block failed:', error);
+      Alert.alert("Error", "Could not block user. Please try again.");
+    } finally {
+      setIsBlocking(false);
+    }
   };
 
   const renderItem = ({ item }) => {
     if (item.type === 'header') {
       return (
         <View style={styles.dateHeaderContainer}>
-          <Text style={[styles.dateHeaderText, { fontSize: fSize(1.5) }]}>{item.label}</Text>
+          <Text style={[styles.dateHeaderText, { fontSize: fSize(1.3) }]}>{item.label}</Text>
         </View>
       );
     }
     const isMyMessage = item.senderId === userDetails?._id;
     return (
-      <View
-        style={[
-          styles.messageContainer,
-          isMyMessage ? styles.myMessageContainer : styles.theirMessageContainer,
-        ]}>
-        <View
-          style={[
-            styles.messageBubble,
-            isMyMessage ? styles.myMessageBubble : styles.theirMessageBubble,
-          ]}>
-          <Text
-            style={[
-              styles.messageText,
-              isMyMessage && styles.myMessageText,
-              { fontSize: fSize(1.8) }
-            ]}>
+      <View style={[styles.messageContainer, isMyMessage ? styles.myMsgCont : styles.theirMsgCont]}>
+        <View style={[styles.bubble, isMyMessage ? styles.myBubble : styles.theirBubble]}>
+          <Text style={[styles.msgText, isMyMessage && styles.myMsgText, { fontSize: fSize(1.7) }]}>
             {item.text}
           </Text>
+          <Text style={[styles.timeText, isMyMessage ? styles.myTime : styles.theirTime, { fontSize: fSize(1.1) }]}>
+            {moment(item.createdAt).format('h:mm A')}
+          </Text>
         </View>
-        <Text style={[styles.messageTime, { fontSize: fSize(1.3) }]}>{formatTime(item.createdAt)}</Text>
       </View>
     );
   };
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
 
-        {/* Header */}
+        {/* --- Header --- */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#1F2937" />
-            </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerIconBtn}>
+            <Ionicons name="chevron-back" size={24} color={COLORS.textDark} />
+          </TouchableOpacity>
 
-            <Image
-              source={{ uri: pic }}
-              style={[styles.avatar, { width: isTablet ? 48 : 42, height: isTablet ? 48 : 42 }]}
-            />
-
+          <View style={styles.headerCore}>
+            <View style={styles.avatarWrapper}>
+              <Image source={{ uri: pic }} style={styles.avatar} />
+              <View style={styles.onlineDot} />
+            </View>
             <View style={styles.headerInfo}>
-              <Text style={[styles.headerTitle, { fontSize: fSize(2) }]} numberOfLines={1}>
-                {name}
-              </Text>
-              <Text style={[styles.headerStatus, { fontSize: fSize(1.5) }]}>Online</Text>
+              <Text style={[styles.headerTitle, { fontSize: fSize(1.9) }]} numberOfLines={1}>{name}</Text>
+              <Text style={[styles.statusText, { fontSize: fSize(1.3) }]}>Session Active</Text>
             </View>
           </View>
+
+          <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.headerIconBtn}>
+            <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textDark} />
+          </TouchableOpacity>
         </View>
 
-        {/* Chat Body */}
+        {/* --- KEY FIX: KeyboardAvoidingView configuration --- */}
         <KeyboardAvoidingView
-          style={styles.flexGrow}
+          style={styles.flexOne}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
+        >
+          <View style={styles.chatArea}>
+            <FlatList
+              ref={flatListRef}
+              data={formattedMessages}
+              renderItem={renderItem}
+              keyExtractor={item => item._id}
+              contentContainerStyle={styles.listPadding}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            />
+          </View>
 
-          <FlatList
-            ref={flatListRef}
-            data={formattedMessages}
-            renderItem={renderItem}
-            keyExtractor={item => item._id}
-            contentContainerStyle={styles.chatContentContainer}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: false })
-            }
-            onLayout={() =>
-              flatListRef.current?.scrollToEnd({ animated: false })
-            }
-            showsVerticalScrollIndicator={false}
-          />
-
-          {/* Input Area */}
-          <View style={styles.inputWrapper}>
-            <View style={styles.inputRow}>
-
-              {/* Text Input */}
-              <View style={[styles.textInputContainer, { borderRadius: isTablet ? 50 : 28, paddingHorizontal: isTablet ? 30 : 16 }]}>
-                <TextInput
-                  value={message}
-                  onChangeText={setMessage}
-                  placeholder="Type a message..."
-                  placeholderTextColor={'#9CA3AF'}
-                  style={[styles.textInput, { fontSize: fSize(1.8) }]}
-                  multiline
-                />
-              </View>
-
-              {/* Send Button (Outside) */}
+          {/* --- Input Area --- */}
+          <View style={[styles.inputWrapper, { paddingBottom: Platform.OS === 'ios' ? insets.bottom + 8 : 12 }]}>
+            <View style={styles.inputBar}>
+              <TextInput
+                value={message}
+                onChangeText={setMessage}
+                placeholder="Type a message..."
+                placeholderTextColor={COLORS.textLight}
+                style={[styles.input, { fontSize: fSize(1.7) }]}
+                multiline
+              />
               <TouchableOpacity
-                style={[
-                  styles.sendButton,
-                  { backgroundColor: message.trim() ? COLORS.primary : '#E5E7EB' },
-                ]}
+                style={[styles.sendBtn, { backgroundColor: message.trim() ? COLORS.primary : '#E2E8F0' }]}
                 onPress={handleSendMessage}
-                disabled={!message.trim()}>
-                <Feather name="send" size={20} color={message.trim() ? "#fff" : "#9CA3AF"} />
+                disabled={!message.trim()}
+              >
+                <Feather name="send" size={18} color={message.trim() ? "#FFF" : COLORS.textLight} />
               </TouchableOpacity>
-
             </View>
           </View>
         </KeyboardAvoidingView>
 
+        {/* --- Modals --- */}
+        <Modal
+          isVisible={menuVisible}
+          onBackdropPress={() => setMenuVisible(false)}
+          animationIn="fadeInRight"
+          animationOut="fadeOutRight"
+          backdropOpacity={0.15}
+          style={styles.menuModal}
+        >
+          <View style={styles.menuCard}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                setTimeout(() => setShowConfirmModal(true), 400);
+              }}
+            >
+              <View style={styles.dangerIconBox}>
+                <Ionicons name="ban" size={16} color={COLORS.danger} />
+              </View>
+              <Text style={styles.menuItemText}>Block User</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
+
+        <Modal
+          isVisible={showConfirmModal}
+          onBackdropPress={() => !isBlocking && setShowConfirmModal(false)}
+          animationIn="zoomIn"
+          animationOut="zoomOut"
+          backdropOpacity={0.3}
+        >
+          <View style={styles.confirmCard}>
+            <Ionicons name="alert-circle" size={50} color={COLORS.danger} />
+            <Text style={styles.confirmTitle}>End Session & Block?</Text>
+            <Text style={styles.confirmSub}>You won't receive further messages from {name}.</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.cancelActionBtn} onPress={() => setShowConfirmModal(false)}>
+                <Text style={styles.cancelActionText}>Go Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.blockActionBtn} onPress={handleBlockUser} disabled={isBlocking}>
+                {isBlocking ? <ActivityIndicator color="#FFF" /> : <Text style={styles.blockActionText}>Confirm</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  flexGrow: {
-    backgroundColor: COLORS.bg,
-    flex: 1,
-  },
-
-  // --- Header Styles ---
+  container: { flex: 1, backgroundColor: COLORS.white },
+  flexOne: { flex: 1 },
+  chatArea: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     backgroundColor: COLORS.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    elevation: 2,
     zIndex: 10,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 4,
-    borderRadius: 50,
-  },
-  avatar: {
-    borderRadius: 50,
-    marginRight: 12,
-    backgroundColor: '#E5E7EB',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-  },
-  headerInfo: {
-    justifyContent: 'center',
-    flex: 1,
-  },
-  headerTitle: {
-    fontFamily: 'Poppins-SemiBold',
-    color: COLORS.textDark,
-  },
-  headerStatus: {
-    fontFamily: 'Poppins-Medium',
-    color: '#10B981',
-  },
-
-  // --- Chat List Styles ---
-  chatContentContainer: {
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 16,
-    flexGrow: 1,
-  },
-  dateHeaderContainer: {
-    alignSelf: 'center',
-    marginBottom: 24,
-    marginTop: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: 'rgba(229, 231, 235, 0.6)',
-  },
-  dateHeaderText: {
-    fontFamily: 'Poppins-Medium',
-    color: COLORS.textLight,
-  },
-
-  // --- Message Bubbles ---
-  messageContainer: {
-    marginVertical: 6,
-    width: '100%',
-  },
-  myMessageContainer: {
-    alignItems: 'flex-end',
-  },
-  theirMessageContainer: {
-    alignItems: 'flex-start',
-  },
-
-  messageBubble: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 20,
-    maxWidth: '85%',
-  },
-  myMessageBubble: {
-    backgroundColor: COLORS.primary,
-    borderBottomRightRadius: 4
-  },
-  theirMessageBubble: {
-    backgroundColor: COLORS.white,
-    borderBottomLeftRadius: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  messageText: {
-    fontFamily: 'Poppins-Regular',
-    color: '#111',
-  },
-  myMessageText: {
-    color: '#fff'
-  },
-  messageTime: {
-    fontFamily: 'Poppins-Regular',
-    color: '#9CA3AF',
-    marginTop: 4,
-    marginHorizontal: 4,
-  },
-
-  // --- Input Styles ---
-  inputWrapper: {
-    backgroundColor: COLORS.white,
-    // backgroundColor: 'red',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center', // Changed from flex-end to center
-  },
-  textInputContainer: {
-    flex: 1,
-    backgroundColor: COLORS.inputBg,
-    paddingVertical: 8,
-    marginRight: 10,
-  },
-  textInput: {
-    fontFamily: 'Poppins-Regular',
-    color: COLORS.textDark,
-    maxHeight: 120,
-    paddingTop: Platform.OS === 'ios' ? 10 : 5,
-    paddingBottom: Platform.OS === 'ios' ? 10 : 5,
-  },
-  sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  headerIconBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  headerCore: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 },
+  avatarWrapper: { position: 'relative' },
+  avatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F1F5F9' },
+  onlineDot: { position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: COLORS.success, borderWidth: 2, borderColor: COLORS.white },
+  headerInfo: { marginLeft: 12, flex: 1 },
+  headerTitle: { fontFamily: 'Poppins-SemiBold', color: COLORS.textDark, marginBottom: -2 },
+  statusText: { fontFamily: 'Poppins-Medium', color: COLORS.success },
+  listPadding: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 20 },
+  dateHeaderContainer: { alignSelf: 'center', backgroundColor: 'rgba(203, 213, 225, 0.4)', paddingHorizontal: 14, paddingVertical: 4, borderRadius: 12, marginBottom: 20 },
+  dateHeaderText: { fontFamily: 'Poppins-Medium', color: COLORS.textLight },
+  messageContainer: { marginVertical: 6, width: '100%' },
+  myMsgCont: { alignItems: 'flex-end' },
+  theirMsgCont: { alignItems: 'flex-start' },
+  bubble: { padding: 12, paddingHorizontal: 16, borderRadius: 20, maxWidth: '82%', elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  myBubble: { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 },
+  theirBubble: { backgroundColor: COLORS.white, borderBottomLeftRadius: 4 },
+  msgText: { fontFamily: 'Poppins-Regular', lineHeight: 22 },
+  myMsgText: { color: COLORS.white },
+  timeText: { fontFamily: 'Poppins-Regular', marginTop: 4, alignSelf: 'flex-end' },
+  myTime: { color: 'rgba(255,255,255,0.7)' },
+  theirTime: { color: COLORS.textLight },
+  inputWrapper: { paddingHorizontal: 16, paddingTop: 12, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  inputBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 24, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 4, borderWidth: 1, borderColor: '#F1F5F9' },
+  input: { flex: 1, color: COLORS.textDark, maxHeight: 100, fontFamily: 'Poppins-Regular' },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
+  menuModal: { margin: 0, alignItems: 'flex-end', justifyContent: 'flex-start' },
+  menuCard: { marginTop: Platform.OS === 'ios' ? 110 : 70, marginRight: 20, backgroundColor: COLORS.white, borderRadius: 16, width: 170, elevation: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 15 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+  dangerIconBox: { width: 30, height: 30, borderRadius: 8, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  menuItemText: { fontSize: responsiveFontSize(1.7), includeFontPadding: false, fontFamily: 'Poppins-Medium', color: COLORS.danger },
+  confirmCard: { backgroundColor: COLORS.white, borderRadius: 28, padding: 24, alignItems: 'center' },
+  confirmTitle: { includeFontPadding: false, fontFamily: 'Poppins-Bold', fontSize: responsiveFontSize(2.2), color: COLORS.textDark, marginTop: 12 },
+  confirmSub: { fontFamily: 'Poppins-Regular', fontSize: responsiveFontSize(1.6), color: COLORS.textLight, textAlign: 'center', marginTop: 8, marginBottom: 24 },
+  confirmActions: { flexDirection: 'row', width: '100%' },
+  cancelActionBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#F1F5F9', alignItems: 'center', marginRight: 10 },
+  blockActionBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: COLORS.danger, alignItems: 'center' },
+  cancelActionText: { fontFamily: 'Poppins-SemiBold', color: COLORS.textLight, includeFontPadding: false },
+  blockActionText: { fontFamily: 'Poppins-SemiBold', color: COLORS.white, includeFontPadding: false },
 });
 
 export default QuickBoostChat;
